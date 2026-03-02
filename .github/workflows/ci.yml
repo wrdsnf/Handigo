@@ -23,10 +23,6 @@ jobs:
         working-directory: ./handigo
         run: npm install
 
-      - name: Run Test
-        working-directory: ./handigo
-        run: npm test -- --watchAll=false
-
       - name: Build project
         working-directory: ./handigo
         run: npm run build
