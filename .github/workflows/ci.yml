@@ -20,13 +20,17 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
+        working-directory: ./handigo
         run: npm install
 
       - name: Run Lint
+        working-directory: ./handigo
         run: npm run lint
 
       - name: Run Test
+        working-directory: ./handigo
         run: npm test -- --watchAll=false
 
       - name: Build project
+        working-directory: ./handigo
         run: npm run build
