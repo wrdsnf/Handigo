@@ -2,11 +2,12 @@ import Container from '@/components/Container';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const SettingsPage = () => {
   const navigate = useNavigate();
   const { user, updateProfile } = useAuth();
-  
+
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -30,15 +31,22 @@ const SettingsPage = () => {
   };
 
   const handleSave = async () => {
+    if (!form.name.trim()) {
+      toast.error('Nama tidak boleh kosong');
+      return;
+    }
     setIsSubmitting(true);
-    await updateProfile({ name: form.name, email: form.email });
-    setIsSubmitting(false);
-    navigate('/profile');
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+    try {
+      await updateProfile({
+        name: form.name,
+        password: form.password || undefined,
+      });
+      navigate('/profile');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -62,15 +70,18 @@ const SettingsPage = () => {
             onChange={handleChange}
           />
 
-          <Input
-            label="Email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-          />
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Email</p>
+            <input
+              value={form.email}
+              disabled
+              className="w-full px-4 py-2 rounded-full bg-gray-100 text-sm text-gray-400 cursor-not-allowed"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">Email tidak dapat diubah</p>
+          </div>
 
           <Input
-            label="Password"
+            label="Password Baru"
             name="password"
             type="password"
             value={form.password}
@@ -81,8 +92,8 @@ const SettingsPage = () => {
         </div>
 
         {/* SAVE */}
-        <button 
-          onClick={handleSave} 
+        <button
+          onClick={handleSave}
           disabled={isSubmitting}
           className="w-full bg-primary-blue text-white py-3 rounded-full mt-8 hover:bg-primary-hover active:scale-95 transition-all duration-200 disabled:opacity-50 font-semibold"
         >
@@ -103,4 +114,5 @@ const Input = ({ label, ...props }) => (
     />
   </div>
 );
+
 export default SettingsPage;

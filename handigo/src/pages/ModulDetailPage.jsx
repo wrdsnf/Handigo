@@ -1,12 +1,88 @@
 import Container from '@/components/Container';
+import LoadingSpinner from '@/components/LoadingSpinner';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Camera, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { fetchModuleById, fetchExercises, fetchModuleProgress, upsertProgress } from '../lib/database';
+import { useConfirm } from '../components/ConfirmModal';
 
 const ModulDetailPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+
+  const [module, setModule] = useState(null);
+  const [exercises, setExercises] = useState([]);
+  const [progress, setProgress] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [ConfirmDialog, confirm] = useConfirm();
+
+  // Load module + exercises immediately (public data)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const [mod, exs] = await Promise.all([
+          fetchModuleById(id),
+          fetchExercises(id),
+        ]);
+        if (!cancelled) {
+          setModule(mod);
+          setExercises(exs);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  // Load user progress separately (after auth resolves)
+  useEffect(() => {
+    if (authLoading || !user) return;
+    let cancelled = false;
+    const loadProgress = async () => {
+      try {
+        const prog = await fetchModuleProgress(user.id, id);
+        if (!cancelled) setProgress(prog);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadProgress();
+    return () => { cancelled = true; };
+  }, [id, user, authLoading]);
+
+  if (loading) return <LoadingSpinner text="Memuat modul..." />;
+  if (!module) return (
+    <div className="flex-1 flex items-center justify-center">
+      <p className="text-gray-500">Modul tidak ditemukan.</p>
+    </div>
+  );
+
+  const completedExercises = progress?.completed_exercises || 0;
+  const progressPct = progress?.progress_percentage || 0;
+
+  const getExerciseStatus = (exerciseIndex) => {
+    if (exerciseIndex <= completedExercises) return 'done';
+    if (exerciseIndex === completedExercises + 1) return 'progress';
+    return 'locked';
+  };
+
+  // Navigate to the next unfinished exercise (resume behavior)
+  const handleContinue = () => {
+    if (!user) return;
+    const nextIndex = completedExercises + 1;
+    const nextExercise = exercises.find(e => e.exercise_index === nextIndex) || exercises[0];
+    if (nextExercise) {
+      navigate(`/modul/${id}/latihan`, { state: { exerciseId: nextExercise.id, exerciseIndex: nextExercise.exercise_index } });
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-white text-gray-800 antialiased pt-6 pb-20">
@@ -14,13 +90,13 @@ const ModulDetailPage = () => {
 
         {/* BACK */}
         <div className="mb-6">
-          <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
-            ← Kembali
+          <button onClick={() => navigate('/modul')} className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer">
+            ← Kembali ke Modul
           </button>
         </div>
 
         {/* COVER */}
-        <div className="w-full h-40 md:h-52 bg-light-blue rounded-2xl flex items-center justify-center mb-6">
+        <div className="w-full h-32 sm:h-40 md:h-52 bg-light-blue rounded-2xl flex items-center justify-center mb-6">
           <div className="w-16 h-16 bg-gray-300 rounded-lg flex items-center justify-center text-gray-600">
             <Camera size={32} />
           </div>
@@ -29,103 +105,79 @@ const ModulDetailPage = () => {
         {/* META */}
         <div className="flex flex-wrap gap-2 mb-3">
           <span className="text-xs px-3 py-1 rounded-full border border-gray-300 text-gray-600">
-            Dasar
+            {module.level}
           </span>
           <span className="text-xs px-3 py-1 rounded-full border border-gray-300 text-gray-600">
-            5 Latihan
+            {module.total_exercises} Latihan
           </span>
           <span className="text-xs px-3 py-1 rounded-full border border-gray-300 text-gray-600">
-            ±10 menit
+            {module.duration}
           </span>
         </div>
 
         {/* TITLE */}
-        <h1 className="text-3xl font-bold text-primary-blue mb-2">
-          Alfabet Dasar (A–Z)
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary-blue mb-2">
+          {module.title}
         </h1>
 
-        <p className="text-gray-600 mb-8 max-w-2xl">
-          Modul ini mengajarkan 26 huruf alfabet dalam Bisindo (Bahasa Isyarat Indonesia).
-          Cocok untuk pemula yang baru memulai belajar bahasa isyarat.
+        <p className="text-gray-600 mb-6 sm:mb-8 max-w-2xl text-sm sm:text-base">
+          {module.description}
         </p>
 
         {/* PROGRESS */}
-        <div className="bg-light-blue rounded-2xl p-6 mb-10">
+        <div className="bg-light-blue rounded-2xl p-4 sm:p-6 mb-8 sm:mb-10">
           <h3 className="font-semibold mb-3">Progres Modul</h3>
 
           <div className="w-full h-3 bg-gray-200 rounded-full">
-            <div className="w-[35%] h-3 bg-primary-blue rounded-full"></div>
+            <div className="h-3 bg-primary-blue rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }}></div>
           </div>
 
           <p className="text-xs text-gray-600 mt-2">
-            35% selesai — 2 dari 5 latihan
+            {Math.round(progressPct)}% selesai — {completedExercises} dari {module.total_exercises} latihan
           </p>
         </div>
 
         {/* LIST LATIHAN */}
-        <h2 className="text-2xl font-bold text-primary-blue text-center mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold text-primary-blue text-center mb-4 sm:mb-6">
           Daftar Latihan
         </h2>
 
         <div className="space-y-4 mb-10">
-
-          {/* DONE */}
-          <ExerciseCard
-            index={1}
-            title="Huruf A, B, C"
-            status="done"
-            score="90/100"
-            moduleId={id}
-            user={user}
-          />
-
-          {/* ONGOING */}
-          <ExerciseCard
-            index={2}
-            title="Huruf D, E, F"
-            status="progress"
-            moduleId={id}
-            user={user}
-          />
-
-          {/* LOCKED */}
-          <ExerciseCard
-            index={3}
-            title="Huruf G, H, I"
-            status="locked"
-            moduleId={id}
-            user={user}
-          />
-
-          <ExerciseCard
-            index={4}
-            title="Huruf J, K, L"
-            status="locked"
-            moduleId={id}
-            user={user}
-          />
-
+          {exercises.map((ex) => (
+            <ExerciseCard
+              key={ex.id}
+              exercise={ex}
+              status={getExerciseStatus(ex.exercise_index)}
+              moduleId={id}
+              user={user}
+              confirm={confirm}
+              progress={progress}
+            />
+          ))}
         </div>
 
         {/* BUTTON */}
         <div className="flex justify-center">
-          <button 
-            onClick={() => user && navigate(`/modul/${id || 'dasar'}/latihan`)} 
+          <button
+            onClick={handleContinue}
             disabled={!user}
-            className="flex items-center gap-2 bg-primary-blue text-white px-8 py-3 rounded-full text-sm font-semibold hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-primary-blue text-white px-6 sm:px-8 py-3 rounded-full text-sm font-semibold hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto justify-center"
           >
             {!user && <Lock size={16} />}
-            {user ? 'Lanjutkan Latihan' : 'Login untuk memulai latihan'}
+            {user ? (completedExercises > 0 ? 'Lanjutkan Latihan' : 'Mulai Latihan') : 'Login untuk memulai latihan'}
           </button>
         </div>
 
       </Container>
+
+      {/* Confirmation modal */}
+      {ConfirmDialog}
     </div>
   );
 };
 
 
-const ExerciseCard = ({ index, title, status, score, moduleId, user }) => {
+const ExerciseCard = ({ exercise, status, moduleId, user, confirm, progress }) => {
   const navigate = useNavigate();
   const isDone = status === "done";
   const isProgress = status === "progress";
@@ -133,7 +185,26 @@ const ExerciseCard = ({ index, title, status, score, moduleId, user }) => {
 
   const handleAction = () => {
     if (user) {
-      navigate(`/modul/${moduleId || 'dasar'}/latihan`);
+      navigate(`/modul/${moduleId}/latihan`, {
+        state: { exerciseId: exercise.id, exerciseIndex: exercise.exercise_index }
+      });
+    }
+  };
+
+  // "Ulang" for completed exercises — show confirmation first
+  const handleRetry = async () => {
+    if (!user) return;
+    const ok = await confirm({
+      title: 'Ulangi Latihan?',
+      message: `Yakin ingin mengulang "${exercise.title}"? Skor sebelumnya akan ditambahkan sebagai percobaan baru.`,
+      confirmText: 'Ya, Ulangi',
+      cancelText: 'Batal',
+      variant: 'warning',
+    });
+    if (ok) {
+      navigate(`/modul/${moduleId}/latihan`, {
+        state: { exerciseId: exercise.id, exerciseIndex: exercise.exercise_index }
+      });
     }
   };
 
@@ -152,21 +223,21 @@ const ExerciseCard = ({ index, title, status, score, moduleId, user }) => {
               "bg-gray-300 text-gray-500"}
           `}
         >
-          {isDone ? <Check size={18} strokeWidth={3} /> : index}
+          {isDone ? <Check size={18} strokeWidth={3} /> : exercise.exercise_index}
         </div>
 
         {/* TEXT */}
         <div>
           <p className="font-medium">
-            Latihan {index} — {title}
+            Latihan {exercise.exercise_index} — {exercise.title}
           </p>
 
           {isDone && (
-            <p className="text-xs text-gray-500 mt-1">100% Selesai</p>
+            <p className="text-xs text-gray-500 mt-1">Selesai</p>
           )}
 
           {isProgress && (
-            <p className="text-xs text-gray-500 mt-1">35% Selesai</p>
+            <p className="text-xs text-gray-500 mt-1">Sedang berlangsung</p>
           )}
 
           {isLocked && (
@@ -177,23 +248,20 @@ const ExerciseCard = ({ index, title, status, score, moduleId, user }) => {
 
       {/* RIGHT SIDE */}
       <div className="flex items-center sm:justify-end">
-        {!user && !isLocked ? (
+        {!user ? (
           <span className="text-xs text-gray-500 italic opacity-75">
             Login untuk akses
           </span>
         ) : (
           <>
             {isDone && (
-              <span className="text-sm font-medium text-gray-600 flex items-center gap-3">
-                <span className="hidden xs:inline">Skor {score}</span>
-                <button onClick={handleAction} disabled={!user} className="bg-white border text-primary-blue border-primary-blue px-3 py-1 rounded-full text-xs font-semibold hover:bg-light-blue transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
-                  Ulang
-                </button>
-              </span>
+              <button onClick={handleRetry} className="bg-white border text-primary-blue border-primary-blue px-3 py-1 rounded-full text-xs font-semibold hover:bg-light-blue transition whitespace-nowrap">
+                Ulang
+              </button>
             )}
 
             {isProgress && (
-              <button onClick={handleAction} disabled={!user} className="bg-primary-blue text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleAction} className="bg-primary-blue text-white px-4 py-2 rounded-full text-xs font-semibold hover:bg-primary-hover hover:scale-[1.02] active:scale-[0.98] transition whitespace-nowrap">
                 Lanjutkan
               </button>
             )}

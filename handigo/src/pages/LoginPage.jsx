@@ -34,10 +34,10 @@ const LoginPage = () => {
       <Container className="flex-1 flex items-center justify-center h-full">
       
       {/* CARD */}
-      <div className="w-full max-w-md bg-light-blue rounded-3xl shadow-lg p-8">
+      <div className="w-full max-w-md bg-light-blue rounded-2xl sm:rounded-3xl shadow-lg p-5 sm:p-8">
         
         {/* TITLE */}
-        <h1 className="text-3xl font-bold text-center text-primary-blue mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-primary-blue mb-2">
           Selamat Datang!
         </h1>
         <p className="text-center text-primary-blue opacity-80 text-sm mb-6">

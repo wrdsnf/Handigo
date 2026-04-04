@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Container from '@/components/Container';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 import { Eye, EyeOff } from 'lucide-react';
 
 const RegisterPage = () => {
@@ -22,7 +23,7 @@ const RegisterPage = () => {
     if (!name || !email || !password || !confirmPassword) return;
     
     if (password !== confirmPassword) {
-      alert("Password tidak cocok!");
+      toast.error("Password tidak cocok!");
       return;
     }
 
@@ -42,10 +43,10 @@ const RegisterPage = () => {
       <Container className="flex-1 flex items-center justify-center h-full">
       
       {/* CARD */}
-      <div className="w-full max-w-md bg-light-blue rounded-3xl shadow-lg p-8">
+      <div className="w-full max-w-md bg-light-blue rounded-2xl sm:rounded-3xl shadow-lg p-5 sm:p-8">
         
         {/* TITLE */}
-        <h1 className="text-3xl font-bold text-center text-primary-blue mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-primary-blue mb-2">
           Buat Akun Baru
         </h1>
         <p className="text-center text-primary-blue opacity-80 text-sm mb-6">
