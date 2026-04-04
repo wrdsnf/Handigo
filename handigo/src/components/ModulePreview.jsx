@@ -2,9 +2,9 @@ import { useNavigate } from "react-router-dom";
 import Container from '@/components/Container';
 
 const modules = [
-  { title: "Dasar", desc: "Alfabet & Angka", path: "/modul/dasar" },
-  { title: "Menengah", desc: "Kosakata Umum", path: "/modul/menengah" },
-  { title: "Lanjutan", desc: "Kalimat Sehari-hari", path: "/modul/lanjutan" },
+  { title: "Dasar", desc: "Alfabet & Angka", level: "Dasar" },
+  { title: "Menengah", desc: "Kosakata Umum", level: "Menengah" },
+  { title: "Lanjutan", desc: "Kalimat Sehari-hari", level: "Lanjutan" },
 ];
 
 const ModulePreview = () => {
@@ -13,7 +13,7 @@ const ModulePreview = () => {
   return (
     <section className="mb-16 md:mb-20">
       <Container>
-        <div className="bg-light-blue py-12 px-6 md:px-8 rounded-[3rem]">
+        <div className="bg-light-blue py-8 sm:py-12 px-4 sm:px-6 md:px-8 rounded-2xl sm:rounded-[3rem]">
           <h2 className="text-2xl md:text-3xl font-bold text-primary-blue text-center mb-8">
             Preview Modul
           </h2>
@@ -22,7 +22,7 @@ const ModulePreview = () => {
             {modules.map((item, index) => (
               <div
                 key={index}
-                onClick={() => navigate(item.path)}
+                onClick={() => navigate(`/modul?level=${item.level}`)}
                 className="bg-primary-blue text-white px-6 py-5 
                            rounded-[2rem] cursor-pointer
                            flex flex-col justify-between

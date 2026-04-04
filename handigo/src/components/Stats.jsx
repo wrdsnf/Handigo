@@ -4,7 +4,7 @@ const Stats = () => {
   return (
     <section className="mb-16 md:mb-20">
       <Container>
-        <div className="bg-dark-gray rounded-[3rem] py-10 md:py-12 px-6 md:px-8 flex flex-col md:flex-row justify-around items-center gap-8 md:gap-0 text-center text-white">
+        <div className="bg-dark-gray rounded-2xl sm:rounded-[3rem] py-8 sm:py-10 md:py-12 px-4 sm:px-6 md:px-8 flex flex-col md:flex-row justify-around items-center gap-6 md:gap-0 text-center text-white">
           <div className="w-full md:w-auto">
             <h3 className="text-4xl font-bold mb-2">12,000+</h3>
             <p className="text-gray-400 text-sm">Pengguna</p>
