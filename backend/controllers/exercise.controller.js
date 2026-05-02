@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase');
+const { supabase, supabaseAdmin } = require('../config/supabase');
 
 /**
  * GET /api/exercises/:id
@@ -6,11 +6,12 @@ const supabase = require('../config/supabase');
 async function getExerciseById(req, res, next) {
   try {
     const { id } = req.params;
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('exercises')
       .select('*')
       .eq('id', id)
       .single();
+    
     if (error) return res.status(404).json({ error: 'Latihan tidak ditemukan.' });
     res.json(data);
   } catch (err) {

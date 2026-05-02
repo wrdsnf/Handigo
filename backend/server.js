@@ -8,6 +8,7 @@ const progressRoutes = require('./routes/progress.routes');
 const exerciseRoutes = require('./routes/exercise.routes');
 const profileRoutes = require('./routes/profile.routes');
 const detectionRoutes = require('./routes/detection.routes');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 console.log('authRoutes:', typeof authRoutes);
@@ -16,9 +17,13 @@ console.log('progressRoutes:', typeof progressRoutes);
 console.log('exerciseRoutes:', typeof exerciseRoutes);
 console.log('profileRoutes:', typeof profileRoutes);
 console.log('detectionRoutes:', typeof detectionRoutes);
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
 app.use(express.json());
 
+app.use(cookieParser());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true // PENTING biar cookie kebaca
+}));
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/modules', moduleRoutes);

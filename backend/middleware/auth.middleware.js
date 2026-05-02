@@ -1,22 +1,25 @@
 const { supabase } = require('../config/supabase');
 
 async function authenticate(req, res, next) {
-  const authHeader = req.headers.authorization;
+  try {
+    const token = req.cookies.access_token;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token tidak ditemukan.' });
+    if (!token) {
+      return res.status(401).json({ error: 'Belum login' });
+    }
+
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error || !data.user) {
+      return res.status(401).json({ error: 'Token invalid / expired' });
+    }
+
+    req.user = data.user;
+    req.accessToken = token; // 🔥 TAMBAH INI PENTING
+    next();
+  } catch (err) {
+    return res.status(500).json({ error: 'Auth error' });
   }
-
-  const token = authHeader.split(' ')[1];
-
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-
-  if (error || !user) {
-    return res.status(401).json({ error: 'Token tidak valid atau sudah expired.' });
-  }
-
-  req.user = user;
-  next();
 }
 
 module.exports = { authenticate };

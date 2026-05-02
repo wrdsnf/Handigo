@@ -1,4 +1,4 @@
-const supabase = require('../config/supabase');
+const { getSupabase } = require('../utils/supabase');
 
 /**
  * GET /api/progress
@@ -6,11 +6,14 @@ const supabase = require('../config/supabase');
  */
 async function getAllProgress(req, res, next) {
   try {
+    const supabase = getSupabase(req); // 🔥 TAMBAH INI
     const userId = req.user.id;
+
     const { data, error } = await supabase
       .from('user_progress')
       .select('*')
       .eq('user_id', userId);
+
     if (error) throw error;
     res.json(data || []);
   } catch (err) {
@@ -24,6 +27,7 @@ async function getAllProgress(req, res, next) {
  */
 async function getModuleProgress(req, res, next) {
   try {
+    const supabase = getSupabase(req); // 🔥
     const userId = req.user.id;
     const { moduleId } = req.params;
 
@@ -48,6 +52,7 @@ async function getModuleProgress(req, res, next) {
  */
 async function upsertModuleProgress(req, res, next) {
   try {
+    const supabase = getSupabase(req); // 🔥 WAJIB
     const userId = req.user.id;
     const { moduleId } = req.params;
     const { completed_exercises, progress_percentage, last_exercise_index } = req.body;
@@ -99,6 +104,7 @@ async function upsertModuleProgress(req, res, next) {
  */
 async function getLastAccessed(req, res, next) {
   try {
+    const supabase = getSupabase(req); // 🔥
     const userId = req.user.id;
     const { data, error } = await supabase
       .from('user_progress')
@@ -121,6 +127,7 @@ async function getLastAccessed(req, res, next) {
  */
 async function getDashboardStats(req, res, next) {
   try {
+    const supabase = getSupabase(req); // 🔥
     const userId = req.user.id;
 
     const [{ data: progress, error: pErr }, { data: results, error: rErr }] = await Promise.all([
