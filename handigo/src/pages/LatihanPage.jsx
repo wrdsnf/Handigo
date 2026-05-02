@@ -22,6 +22,37 @@ const LatihanPage = () => {
   const [isScanning, setIsScanning] = useState(true);
   const startTime = useRef(Date.now());
 
+  const videoRef = useRef(null);
+const streamRef = useRef(null);
+
+useEffect(() => {
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error("Camera error:", err);
+    }
+  };
+
+  startCamera();
+
+  return () => {
+    // stop camera saat keluar halaman
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
+}, []);
+
   // Get exerciseId from navigation state, or default to first exercise
   const exerciseId = location.state?.exerciseId;
   const exerciseIndex = location.state?.exerciseIndex;
@@ -214,7 +245,7 @@ const LatihanPage = () => {
               REFERENSI
             </p>
 
-            <div className="w-full h-36 sm:h-48 bg-light-blue rounded-2xl flex items-center justify-center">
+            <div className="w-full h-36 sm:h-100 bg-light-blue rounded-2xl flex items-center justify-center">
               <div className="w-12 h-12 bg-gray-800 rounded-md flex items-center justify-center text-white">
                 <ImageIcon size={24} />
               </div>
@@ -227,10 +258,14 @@ const LatihanPage = () => {
               KAMERA ANDA
             </p>
 
-            <div className="w-full h-36 sm:h-48 bg-light-blue rounded-2xl flex items-center justify-center relative overflow-hidden">
-              <div className="w-12 h-12 bg-gray-800 rounded-md flex items-center justify-center text-white z-10">
-                <Camera size={24} />
-              </div>
+            <div className="w-full h-100 sm:h-100 bg-light-blue rounded-2xl flex items-center justify-center relative overflow-hidden">
+              <video
+  ref={videoRef}
+  autoPlay
+  playsInline
+  muted
+  className="absolute inset-0 w-full h-full object-cover rounded-2xl"
+/>
               <div className="absolute inset-0 border-2 border-dashed border-white/40 rounded-2xl pointer-events-none" />
             </div>
           </div>
