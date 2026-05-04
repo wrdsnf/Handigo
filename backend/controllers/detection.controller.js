@@ -15,6 +15,50 @@
  */
 
 /**
+ * @swagger
+ * /api/detection/verify:
+ *   post:
+ *     summary: Verifikasi isyarat tangan (simulasi AI)
+ *     tags: [Detection]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - expected_sign
+ *             properties:
+ *               image_base64:
+ *                 type: string
+ *                 description: Gambar dalam format base64 (opsional untuk simulasi)
+ *                 example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...
+ *               expected_sign:
+ *                 type: string
+ *                 example: A
+ *               exercise_id:
+ *                 type: string
+ *                 example: ex_123
+ *     responses:
+ *       200:
+ *         description: Hasil deteksi isyarat
+ *         content:
+ *           application/json:
+ *             example:
+ *               detected: true
+ *               detected_sign: A
+ *               expected_sign: A
+ *               accuracy: 87
+ *               message: Isyarat "A" terdeteksi dengan akurasi 87%
+ *       400:
+ *         description: Input tidak valid
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: expected_sign wajib diisi.
+ */
+
+/**
  * POST /api/detection/verify
  * Body: { image_base64, expected_sign, exercise_id }
  * 
@@ -53,6 +97,22 @@ async function verifySign(req, res, next) {
   }
 }
 
+/**
+ * @swagger
+ * /api/detection/status:
+ *   get:
+ *     summary: Cek status AI detection service
+ *     tags: [Detection]
+ *     responses:
+ *       200:
+ *         description: Status service
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: simulation
+ *               message: Deteksi berjalan dalam mode simulasi. Integrasikan MediaPipe untuk deteksi nyata.
+ *               recommendation: Gunakan @mediapipe/hands di frontend untuk real-time detection tanpa server.
+ */
 /**
  * GET /api/detection/status
  * Cek apakah AI service aktif

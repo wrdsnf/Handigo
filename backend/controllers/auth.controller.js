@@ -1,4 +1,37 @@
+
 const { supabase, supabaseAdmin } = require('../config/supabase');
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: Register user baru
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *               - full_name
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: user@mail.com
+ *               password:
+ *                 type: string
+ *                 example: 12345678
+ *               full_name:
+ *                 type: string
+ *                 example: Budi Santoso
+ *     responses:
+ *       201:
+ *         description: Register berhasil
+ *       400:
+ *         description: Error input
+ */
 
 /**
  * POST /api/auth/register
@@ -38,6 +71,30 @@ async function register(req, res, next) {
   }
 }
 
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Login user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login sukses
+ *       401:
+ *         description: Unauthorized
+ */
 
 /**
  * POST /api/auth/login
@@ -75,6 +132,16 @@ async function login(req, res, next) {
 }
 
 /**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logout sukses
+ */
+/**
  * POST /api/auth/logout
  * Logout via cookie
  */
@@ -86,6 +153,25 @@ async function logout(req, res) {
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Login dengan Google
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               credential:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Response Google login
+ */
 /**
  * POST /api/auth/google
  * Login / cek user Google OAuth
@@ -139,6 +225,30 @@ async function googleLogin(req, res) {
   }
 }
 
+/**
+ * @swagger
+ * /api/auth/complete-profile:
+ *   post:
+ *     summary: Lengkapi profile user Google
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password, full_name]
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               full_name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Profile berhasil dilengkapi
+ */
 /**
  * POST /api/auth/complete-profile
  * Melengkapi akun setelah login Google
@@ -208,6 +318,16 @@ async function completeProfile(req, res) {
   }
 }
 
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Ambil data user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Data user
+ */
 /**
  * GET /api/auth/me
  * Mengambil data user dari middleware auth (JWT/cookie)

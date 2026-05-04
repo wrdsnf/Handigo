@@ -1,6 +1,25 @@
 const { getSupabase } = require('../utils/supabase');
 
 /**
+ * @swagger
+ * /api/progress:
+ *   get:
+ *     summary: Ambil semua progress user
+ *     tags: [Progress]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List progress semua modul
+ *         content:
+ *           application/json:
+ *             example:
+ *               - module_id: mod_1
+ *                 completed_exercises: 5
+ *                 progress_percentage: 50
+ *                 last_exercise_index: 4
+ */
+/**
  * GET /api/progress
  * Ambil semua progress user untuk semua modul
  */
@@ -21,6 +40,32 @@ async function getAllProgress(req, res, next) {
   }
 }
 
+/**
+ * @swagger
+ * /api/progress/{moduleId}:
+ *   get:
+ *     summary: Ambil progress user untuk satu modul
+ *     tags: [Progress]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: moduleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID modul
+ *     responses:
+ *       200:
+ *         description: Data progress modul
+ *         content:
+ *           application/json:
+ *             example:
+ *               module_id: mod_1
+ *               completed_exercises: 5
+ *               progress_percentage: 50
+ *               last_exercise_index: 4
+ */
 /**
  * GET /api/progress/:moduleId
  * Ambil progress user untuk 1 modul
@@ -45,6 +90,49 @@ async function getModuleProgress(req, res, next) {
   }
 }
 
+/**
+ * @swagger
+ * /api/progress/{moduleId}:
+ *   put:
+ *     summary: Update / simpan progress modul (tidak bisa mundur)
+ *     tags: [Progress]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: moduleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID modul
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               completed_exercises:
+ *                 type: number
+ *                 example: 6
+ *               progress_percentage:
+ *                 type: number
+ *                 example: 60
+ *               last_exercise_index:
+ *                 type: number
+ *                 example: 5
+ *     responses:
+ *       200:
+ *         description: Progress berhasil diupdate
+ *         content:
+ *           application/json:
+ *             example:
+ *               module_id: mod_1
+ *               completed_exercises: 6
+ *               progress_percentage: 60
+ *               last_exercise_index: 5
+ *               last_accessed_at: 2026-01-01T10:00:00Z
+ */
 /**
  * PUT /api/progress/:moduleId
  * Upsert progress — tidak pernah mundur
@@ -99,6 +187,25 @@ async function upsertModuleProgress(req, res, next) {
 }
 
 /**
+ * @swagger
+ * /api/progress/last-accessed:
+ *   get:
+ *     summary: Ambil modul terakhir yang diakses user
+ *     tags: [Progress]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Data modul terakhir
+ *         content:
+ *           application/json:
+ *             example:
+ *               module_id: mod_1
+ *               last_accessed_at: 2026-01-01T10:00:00Z
+ *               modules:
+ *                 title: Modul Dasar
+ */
+/**
  * GET /api/progress/last-accessed
  * Modul terakhir yang diakses user
  */
@@ -121,6 +228,40 @@ async function getLastAccessed(req, res, next) {
   }
 }
 
+/**
+ * @swagger
+ * /api/progress/dashboard:
+ *   get:
+ *     summary: Ambil statistik dashboard user
+ *     tags: [Progress]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistik dashboard
+ *         content:
+ *           application/json:
+ *             example:
+ *               completedModules: 3
+ *               avgAccuracy: 87
+ *               streak: 5
+ *               totalResults: 20
+ *               weekData:
+ *                 - day: Mon
+ *                   accuracy: 80
+ *                 - day: Tue
+ *                   accuracy: 85
+ *                 - day: Wed
+ *                   accuracy: 90
+ *                 - day: Thu
+ *                   accuracy: 70
+ *                 - day: Fri
+ *                   accuracy: 88
+ *                 - day: Sat
+ *                   accuracy: 0
+ *                 - day: Sun
+ *                   accuracy: 95
+ */
 /**
  * GET /api/progress/dashboard
  * Stats untuk halaman dashboard
