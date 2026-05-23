@@ -18,12 +18,14 @@ import RegisterPage from '@/pages/RegisterPage';
 import NotFound from '@/pages/NotFound';
 import ModuleListPage from '@/pages/ModuleListPage';
 import ResultPage from '@/pages/ResultPage';
+import LatihanPageWithONNX from '@/pages/LatihanPageWithONNX';
+import CVTestPage from '@/pages/CVTestPage';
 
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <MainLayout />, // MainLayout provides the BottomNavBar
-    errorElement: <NotFound />, // basic catch if something inside fails routing, or we use a root error boundary
+    element: <MainLayout />,
+    errorElement: <NotFound />,
     children: [
       {
         index: true,
@@ -45,6 +47,8 @@ const router = createBrowserRouter([
         path: '/login',
         element: <LoginPage />,
       },
+      // in your router index.jsx — add this temporarily
+        { path: '/cvtest', element: <CVTestPage /> },
       {
         path: '/register',
         element: <RegisterPage />,
@@ -59,6 +63,12 @@ const router = createBrowserRouter([
           {
             path: '/modul/:id/latihan',
             element: <LatihanPage />,
+          },
+          {
+            // ✅ Fixed: added :id param so useParams() returns the module id
+            // ✅ Fixed: moved inside ProtectedRoute so login is required
+            path: '/modul/:id/latihanmode',
+            element: <LatihanPageWithONNX />,
           },
           {
             path: '/modul/:id/hasil',

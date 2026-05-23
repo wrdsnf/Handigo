@@ -11,4 +11,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+
+  // Required for onnxruntime-web to work in the browser
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
+  },
+
+  server: {
+    headers: {
+      // Required for WebAssembly (WASM) to run
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
+  },
 })

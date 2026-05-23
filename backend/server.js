@@ -1,4 +1,8 @@
 require('dotenv').config();
+console.log('ENV CHECK:', {
+  url: process.env.SUPABASE_URL,
+  key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+});
 const express = require('express');
 const cors = require('cors');
 
