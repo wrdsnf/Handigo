@@ -7,7 +7,7 @@ function MainLayout() {
   const location = useLocation();
 
   return (
-    <div className="relative w-full min-h-screen bg-light-bg pt-20 sm:pt-24 md:pt-28 flex flex-col overflow-x-hidden">
+    <div className="relative w-full min-h-screen bg-light-bg flex flex-col overflow-x-hidden">
       {/* Top Navigation */}
       <Navbar />
 

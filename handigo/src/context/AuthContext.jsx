@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { registerUser, loginUser, logoutUser, getMe, googleLogin, completeProfile as completeProfileAPI } from '../lib/api';
+import {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getMe,
+  googleLogin,
+  completeProfile as completeProfileAPI,
+} from '../lib/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
