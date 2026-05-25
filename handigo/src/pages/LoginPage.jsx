@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Container from '@/components/Container';
 import toast from 'react-hot-toast';
@@ -14,65 +14,50 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleGoogleCallbackRef = useRef(null);
-  handleGoogleCallbackRef.current = async (response) => {
-    try {
-      const result = await googleLogin(response.credential);
-      if (result.needProfile) {
-        navigate('/complete-profile', {
-          state: { email: result.email, full_name: result.full_name },
-        });
-      } else {
-        toast.success('Login dengan Google berhasil!');
-        navigate('/dashboard');
-      }
-    } catch (error) {
-      toast.error('Gagal login dengan Google');
-    }
-  };
-
+  // ==========================================
+  // 1. TANGKAP TOKEN SETELAH KEMBALI DARI GOOGLE
+  // ==========================================
   useEffect(() => {
-    console.log("API URL:", import.meta.env.VITE_API_URL);
-    
-  console.log("ORIGIN:", window.location.origin);
-  console.log("GOOGLE CLIENT ID:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
-  console.log("FINAL CLIENT ID CHECK:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
+    // Google akan melempar token di URL dengan format: #id_token=...
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const idToken = params.get('id_token');
 
-  if (document.getElementById('gsi-script')) return;
+    if (idToken) {
+      // Bersihkan URL dari token yang panjang agar rapi dilihat user
+      window.history.replaceState(null, null, window.location.pathname);
 
-  const script = document.createElement('script');
-  script.id = 'gsi-script';
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.async = true;
-  script.defer = true;
-
-  script.onload = () => {
-    console.log("Google script loaded");
-    console.log("Google object:", window.google);
-
-    if (!window.google) return;
-
-    window.google.accounts.id.initialize({
-      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
-      callback: (response) => handleGoogleCallbackRef.current(response),
-    });
-
-    const googleBtn = document.getElementById('googleBtn');
-    console.log("Google Button Element:", googleBtn);
-
-    if (googleBtn) {
-      window.google.accounts.id.renderButton(googleBtn, {
-        theme: 'outline',
-        size: 'large',
-        width: 300,
-        text: 'signin_with',
-        shape: 'pill',
+      // Proses token ke backend kamu
+      googleLogin(idToken).then((result) => {
+        if (result.needProfile) {
+          navigate('/complete-profile', {
+            state: { email: result.email, full_name: result.full_name },
+          });
+        } else {
+          toast.success('Login dengan Google berhasil!');
+          navigate('/dashboard');
+        }
+      }).catch(() => {
+        toast.error('Gagal memproses login Google dari backend');
       });
     }
-  };
+  }, [googleLogin, navigate]);
 
-  document.head.appendChild(script);
-}, []);
+  // ==========================================
+  // 2. FUNGSI REDIRECT KE HALAMAN LOGIN GOOGLE
+  // ==========================================
+  const handleGoogleRedirect = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const redirectUri = 'http://localhost:5173/login'; // Halaman ini sendiri
+    const scope = 'email profile openid';
+    const responseType = 'id_token';
+    const nonce = Math.random().toString(36).substring(2); // Wajib untuk keamanan token
+
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&nonce=${nonce}`;
+
+    // Lempar user ke halaman utama Google
+    window.location.href = googleAuthUrl;
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -106,7 +91,6 @@ const LoginPage = () => {
           </p>
 
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-
             <div className="w-full">
               <label className="text-xs text-primary-blue">Email</label>
               <input
@@ -163,8 +147,16 @@ const LoginPage = () => {
               Daftar Akun
             </Link>
 
+            {/* TOMBOL GOOGLE KUSTOM */}
             <div className="w-full mt-3">
-              <div id="googleBtn" className="w-full flex justify-center"></div>
+              <button
+                type="button"
+                onClick={handleGoogleRedirect}
+                className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 py-2 rounded-full font-semibold hover:bg-gray-50 transition-all shadow-sm"
+              >
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                Lanjutkan dengan Google
+              </button>
             </div>
 
           </form>

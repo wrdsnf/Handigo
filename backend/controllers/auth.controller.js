@@ -1,5 +1,17 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: API Authentication
+ */
 
 const { supabase, supabaseAdmin } = require('../config/supabase');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
 /**
  * @swagger
  * /api/auth/register:
@@ -35,7 +47,7 @@ const { supabase, supabaseAdmin } = require('../config/supabase');
 
 /**
  * POST /api/auth/register
- * Register user baru (Supabase Admin)
+ * Register user baru (Custom Table Auth)
  * Body: { email, password, full_name }
  */
 async function register(req, res, next) {
@@ -46,35 +58,58 @@ async function register(req, res, next) {
       return res.status(400).json({ error: 'Semua field wajib diisi' });
     }
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name, // 🔥 SATU SUMBER
-      },
-    });
+    // 1. Cek apakah email sudah terdaftar
+    const { data: existingUser, error: checkError } = await supabaseAdmin
+      .from('profiles')
+      .select('email')
+      .eq('email', email)
+      .maybeSingle();
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (checkError) {
+      return res.status(500).json({
+        error: 'Gagal cek database',
+        detail: checkError.message
+      });
+    }
 
-    // 🔥 AUTO CREATE PROFILE (SOURCE OF TRUTH)
-    const full_name_final =
-  full_name ||
-  data.user.user_metadata?.full_name ||
-  data.user.user_metadata?.name ||
-  'User';
+    if (existingUser) {
+      return res.status(400).json({
+        error: 'Email sudah terdaftar'
+      });
+    }
 
-await supabase.from('profiles').upsert({
-  id: data.user.id,
-  email,
-  full_name: full_name,   // wajib
-  avatar_url: null,
-}, { onConflict: 'id' });
-console.log('PROFILE UPSERT DONE FOR', data.user.id);
+    // 2. Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // 3. Insert profile baru
+    const { data: newProfile, error: insertError } = await supabaseAdmin
+      .from('profiles')
+      .insert([
+        {
+          email,
+          password: hashedPassword,
+          full_name,
+          avatar_url: null
+        }
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      return res.status(500).json({
+        error: 'Gagal membuat user baru',
+        detail: insertError.message
+      });
+    }
 
     return res.status(201).json({
       message: 'Register berhasil',
-      user: data.user,
+      user: {
+        id: newProfile.id,
+        email: newProfile.email,
+        full_name: newProfile.full_name
+      }
     });
 
   } catch (err) {
@@ -94,12 +129,16 @@ console.log('PROFILE UPSERT DONE FOR', data.user.id);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password]
+ *             required:
+ *               - email
+ *               - password
  *             properties:
  *               email:
  *                 type: string
+ *                 example: user@mail.com
  *               password:
  *                 type: string
+ *                 example: 12345678
  *     responses:
  *       200:
  *         description: Login sukses
@@ -110,31 +149,78 @@ console.log('PROFILE UPSERT DONE FOR', data.user.id);
 /**
  * POST /api/auth/login
  * Login user menggunakan email & password
- * Body: { email, password }
- * Catatan: login sebaiknya langsung dari frontend via Supabase SDK.
- * Endpoint ini untuk keperluan API eksternal / testing.
  */
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Email dan password wajib diisi'
+      });
+    }
 
-    if (error) return res.status(401).json({ error: error.message });
+    // 1. Cari user
+    const { data: profile, error: selectError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-    res.cookie('access_token', data.session.access_token, {
+    if (selectError || !profile) {
+      return res.status(401).json({
+        error: 'Email atau password salah'
+      });
+    }
+
+    // 2. Validasi akun Google
+    if (!profile.password) {
+      return res.status(400).json({
+        error: 'Akun ini terdaftar menggunakan Google. Silakan login lewat Google.'
+      });
+    }
+
+    // 3. Compare password
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      profile.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        error: 'Email atau password salah'
+      });
+    }
+
+    // 4. Generate JWT
+    const myAccessToken = jwt.sign(
+      {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '7d'
+      }
+    );
+
+    // 5. Save cookie
+    res.cookie('access_token', myAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    res.json({
+    return res.json({
       message: 'Login sukses',
-      user: data.user
+      user: {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url
+      }
     });
 
   } catch (err) {
@@ -152,17 +238,18 @@ async function login(req, res, next) {
  *       200:
  *         description: Logout sukses
  */
+
 /**
  * POST /api/auth/logout
- * Logout via cookie
+ * Logout user
  */
 async function logout(req, res) {
   res.clearCookie('access_token');
-  res.json({ message: 'Logout sukses' });
-}
 
-const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  res.json({
+    message: 'Logout sukses'
+  });
+}
 
 /**
  * @swagger
@@ -176,29 +263,35 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - credential
  *             properties:
  *               credential:
  *                 type: string
+ *                 example: eyJhbGciOiJSUzI1NiIs...
  *     responses:
  *       200:
- *         description: Response Google login
+ *         description: Login Google sukses
  */
+
 /**
  * POST /api/auth/google
- * Login / cek user Google OAuth
- * Body: { credential }
+ * Login / Register Google OAuth
  */
 async function googleLogin(req, res) {
   try {
     const { credential } = req.body;
 
     if (!credential) {
-      return res.status(400).json({ error: "Credential tidak ditemukan" });
+      return res.status(400).json({
+        error: 'Credential tidak ditemukan'
+      });
     }
 
+    // VERIFY GOOGLE TOKEN
     const ticket = await client.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID
     });
 
     const payload = ticket.getPayload();
@@ -207,53 +300,116 @@ async function googleLogin(req, res) {
     const full_name = payload.name;
     const avatar_url = payload.picture;
 
-    // 🔥 1. cek profile dulu
-    let { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("email", email)
+    // CEK USER
+    let { data: profile, error: selectError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
       .maybeSingle();
 
-    // 🔥 2. kalau belum ada → suruh buat profile
+    if (selectError) {
+      return res.status(500).json({
+        error: 'Gagal cek database',
+        detail: selectError.message
+      });
+    }
+
+    let needProfile = false;
+
+    // =========================
+    // USER BARU
+    // =========================
     if (!profile) {
-      return res.json({
-        needProfile: true,
-        email,
-        full_name,
-        avatar_url,
-      });
+      const { data: newProfile, error: insertError } = await supabaseAdmin
+        .from('profiles')
+        .insert([
+          {
+            email,
+            full_name,
+            avatar_url,
+            password: null
+          }
+        ])
+        .select()
+        .single();
+
+      if (insertError) {
+        return res.status(500).json({
+          error: 'Gagal membuat profile baru',
+          detail: insertError.message
+        });
+      }
+
+      profile = newProfile;
+
+      // user baru wajib complete profile
+      needProfile = true;
     }
 
-    // 🔥 3. kalau ada → buat session Supabase agar cookie ter-set
-    // FE sebelumnya mengandalkan /auth/me, jadi /auth/google harus set cookie juga.
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token: credential,
-    });
+    // =========================
+    // UPDATE PROFILE
+    // =========================
+    else {
+      const { data: updatedProfile } = await supabaseAdmin
+        .from('profiles')
+        .update({
+          full_name,
+          avatar_url
+        })
+        .eq('email', email)
+        .select()
+        .single();
 
-    if (loginError || !loginData?.session) {
-      return res.status(401).json({
-        error: 'Gagal membuat session dari Google',
-        detail: loginError?.message || 'Missing session',
-      });
+      if (updatedProfile) {
+        profile = updatedProfile;
+      }
+
+      // kalau belum punya password
+      if (!profile.password) {
+        needProfile = true;
+      }
     }
 
-    res.cookie('access_token', loginData.session.access_token, {
+    // =========================
+    // JWT
+    // =========================
+    const myAccessToken = jwt.sign(
+      {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '7d'
+      }
+    );
+
+    // COOKIE
+    res.cookie('access_token', myAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     return res.json({
-      needProfile: false,
-      user: profile,
+      message: 'Login Google sukses',
+
+      needProfile,
+
+      user: {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url
+      }
     });
 
   } catch (err) {
     return res.status(401).json({
-      error: "Google token invalid",
-      detail: err.message,
+      error: 'Google token invalid atau kadaluarsa',
+      detail: err.message
     });
   }
 }
@@ -270,22 +426,28 @@ async function googleLogin(req, res) {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [email, password, full_name]
+ *             required:
+ *               - email
+ *               - full_name
+ *               - password
  *             properties:
  *               email:
  *                 type: string
- *               password:
- *                 type: string
+ *                 example: user@mail.com
  *               full_name:
  *                 type: string
+ *                 example: Budi Santoso
+ *               password:
+ *                 type: string
+ *                 example: 12345678
  *     responses:
  *       200:
  *         description: Profile berhasil dilengkapi
  */
+
 /**
  * POST /api/auth/complete-profile
- * Melengkapi akun setelah login Google
- * Body: { email, password, full_name }
+ * Lengkapi akun Google dengan password
  */
 async function completeProfile(req, res) {
   try {
@@ -293,74 +455,79 @@ async function completeProfile(req, res) {
 
     if (!email || !full_name || !password) {
       return res.status(400).json({
-        error: "Data tidak lengkap"
+        error: 'Data tidak lengkap'
       });
     }
 
-    // 1. cari user (SUDAH ADA DI AUTH)
-    const { data: users } =
-      await supabaseAdmin.auth.admin.listUsers();
+    // 1. Cari profile
+    const { data: profile, error: selectError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
 
-    const user = users.users.find(u => u.email === email);
+    if (selectError) {
+      return res.status(500).json({
+        error: 'Gagal membaca database'
+      });
+    }
 
-    if (!user) {
+    if (!profile) {
       return res.status(400).json({
-        error: "User Google belum ada di Auth (harus login dulu)"
+        error: 'User belum terdaftar. Login Google terlebih dahulu.'
       });
     }
 
-    // 2. UPDATE → ini pengganti "register"
-    const { error: updateError } =
-      await supabaseAdmin.auth.admin.updateUserById(user.id, {
-        password,
-        user_metadata: {
-          full_name
-        }
-      });
+    // 2. Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // 3. Update profile
+    const { data: updatedProfile, error: updateError } = await supabaseAdmin
+      .from('profiles')
+      .update({
+        password: hashedPassword,
+        full_name
+      })
+      .eq('email', email)
+      .select()
+      .single();
 
     if (updateError) {
       return res.status(500).json({
-        error: updateError.message
+        error: 'Gagal menyimpan data',
+        detail: updateError.message
       });
     }
 
-    // 3. upsert profile
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        email,
-        full_name
-      });
+    // 4. Generate JWT
+    const myAccessToken = jwt.sign(
+      {
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        full_name: updatedProfile.full_name
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: '7d'
+      }
+    );
 
-    if (profileError) {
-      return res.status(500).json({
-        error: "Gagal simpan profile",
-        detail: profileError
-      });
-    }
-
-    // Setelah lengkap profile, lakukan login pakai email/password agar cookie ter-set
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (loginError) {
-      return res.status(500).json({
-        error: loginError.message || 'Gagal login setelah complete profile',
-      });
-    }
-
-    res.cookie('access_token', loginData.session.access_token, {
+    // 5. Save cookie
+    res.cookie('access_token', myAccessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     return res.json({
-      message: "Registrasi via Google selesai (password dibuat dan login otomatis)"
+      message: 'Registrasi Google selesai',
+      user: {
+        id: updatedProfile.id,
+        email: updatedProfile.email,
+        full_name: updatedProfile.full_name
+      }
     });
 
   } catch (err) {
@@ -374,24 +541,27 @@ async function completeProfile(req, res) {
  * @swagger
  * /api/auth/me:
  *   get:
- *     summary: Ambil data user
+ *     summary: Ambil data user login
  *     tags: [Auth]
  *     responses:
  *       200:
- *         description: Data user
+ *         description: Data user berhasil diambil
  */
+
 /**
  * GET /api/auth/me
- * Mengambil data user dari middleware auth (JWT/cookie)
+ * Ambil data user dari JWT middleware
  */
 async function getMe(req, res) {
-  res.json({ user: req.user });
+  res.json({
+    user: req.user
+  });
 }
 
-module.exports = { 
-  register, 
-  login, 
-  logout, 
+module.exports = {
+  register,
+  login,
+  logout,
   getMe,
   googleLogin,
   completeProfile

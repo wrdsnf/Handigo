@@ -8,15 +8,18 @@ import {
   completeProfile as completeProfileAPI,
   updateProfile as updateProfileAPI,
 } from '../lib/api';
+
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
   return context;
 };
 
@@ -24,24 +27,39 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  /**
+   * =========================
+   * CHECK AUTH ON APP LOAD
+   * =========================
+   */
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const userData = await getMe();
-        setUser(userData);
+        const response = await getMe();
+
+        // response = { user: {...} }
+        setUser(response.user);
       } catch (err) {
         setUser(null);
       } finally {
         setLoading(false);
       }
     };
+
     checkAuth();
   }, []);
 
+  /**
+   * =========================
+   * REGISTER
+   * =========================
+   */
   const register = async (name, email, password) => {
     try {
       await registerUser(email, password, name);
-      toast.success('Registrasi berhasil! Silakan login.');
+
+      toast.success('Registrasi berhasil!');
+
       return true;
     } catch (err) {
       toast.error(err.message || 'Gagal registrasi');
@@ -49,12 +67,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * =========================
+   * LOGIN EMAIL
+   * =========================
+   */
   const login = async (email, password) => {
     try {
       await loginUser(email, password);
-      const userData = await getMe();
-      setUser(userData);
+
+      const response = await getMe();
+
+      setUser(response.user);
+
       toast.success('Login berhasil!');
+
       return true;
     } catch (err) {
       toast.error(err.message || 'Gagal login');
@@ -62,72 +89,123 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // AuthContext.jsx
-
-const googleLoginHandler = async (credential) => {
-  try {
-    const result = await googleLogin(credential);
-    // result: { needProfile: true, email, full_name, avatar_url }
-    //      atau { needProfile: false, user: {...} }
-
-    if (!result.needProfile) {
-      const userData = await getMe();
-      setUser(userData);
-    }
-
-    return result; // teruskan apa adanya, LoginPage yang handle routing
-  } catch (err) {
-    toast.error(err.message || 'Gagal login dengan Google');
-    throw err;
-  }
-};
-
-const completeProfile = async (email, password, full_name) => {
-  try {
-    await completeProfileAPI(email, password, full_name);
-    // BE sudah set cookie, langsung ambil user
-    const userData = await getMe();
-    setUser(userData);
-    // Tidak toast di sini — biarkan halaman yang memanggil yang toast
-  } catch (err) {
-    // Lempar ke pemanggil agar bisa handle sendiri
-    throw err;
-  }
-};
-
-  const logout = async () => {
+  /**
+   * =========================
+   * LOGIN GOOGLE
+   * =========================
+   */
+  const googleLoginHandler = async (credential) => {
     try {
-      await logoutUser();
-      setUser(null);
-      toast.success('Berhasil keluar');
+      /**
+       * response:
+       * {
+       *   needProfile: true/false,
+       *   user: {...}
+       * }
+       */
+      const response = await googleLogin(credential);
+
+      // Kalau user SUDAH punya password
+      // langsung login
+      if (!response.needProfile) {
+        const me = await getMe();
+
+        setUser(me.user);
+
+        toast.success('Login Google berhasil!');
+      }
+
+      // teruskan response ke LoginPage
+      return response;
+
     } catch (err) {
-      toast.error('Gagal keluar');
+      toast.error(err.message || 'Gagal login dengan Google');
       throw err;
     }
   };
 
+  /**
+   * =========================
+   * COMPLETE PROFILE
+   * =========================
+   */
+  const completeProfile = async (email, password, full_name) => {
+    try {
+      await completeProfileAPI(email, password, full_name);
+
+      // backend sudah set cookie
+      const response = await getMe();
+
+      setUser(response.user);
+
+      return true;
+
+    } catch (err) {
+      toast.error(err.message || 'Gagal melengkapi profile');
+      throw err;
+    }
+  };
+
+  /**
+   * =========================
+   * UPDATE PROFILE
+   * =========================
+   */
   const updateProfile = async (data) => {
     try {
       await updateProfileAPI(data);
-      const updated = await getMe();
-      setUser(updated);
+
+      const response = await getMe();
+
+      setUser(response.user);
+
       toast.success('Profil berhasil diperbarui');
+
       return true;
+
     } catch (err) {
       toast.error(err.message || 'Gagal memperbarui profil');
       throw err;
     }
   };
 
+  /**
+   * =========================
+   * LOGOUT
+   * =========================
+   */
+  const logout = async () => {
+    try {
+      await logoutUser();
+      toast.success('Berhasil logout');
+    } catch (err) {
+      console.warn("Backend session already expired:", err.message);
+      // Alih-alih memunculkan toast ganti dengan pesan yang bersahabat
+      toast.success('Berhasil keluar (Sesi telah berakhir)');
+    } finally {
+      // PENTING: Apapun yang terjadi pada request API,
+      // hapus data user dari state agar aplikasi kembali ke halaman login/awal.
+      setUser(null);
+    }
+  };
+
+  /**
+   * =========================
+   * CONTEXT VALUE
+   * =========================
+   */
   const value = {
     user,
     loading,
+
     register,
     login,
     logout,
-    updateProfile,
-    completeProfile,
+
     googleLogin: googleLoginHandler,
+    completeProfile,
+
+    updateProfile,
   };
 
   return (
