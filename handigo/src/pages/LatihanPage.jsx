@@ -311,7 +311,7 @@ const refKeys = Object.keys(referenceUrls);
 const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]] : null;
 
   return (
-    <div className="flex-1 flex flex-col bg-white text-gray-800 antialiased pt-6 pb-20">
+    <div className="flex-1 flex flex-col bg-white text-gray-800 antialiased pt-20 pb-6">
       <Container>
         {/* TOP BAR */}
         <div className="flex items-center justify-between mb-6">
