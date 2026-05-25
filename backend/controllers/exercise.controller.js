@@ -29,6 +29,11 @@ async function getExerciseById(req, res, next) {
 async function saveExerciseResult(req, res, next) {
   try {
     const { id: exerciseId } = req.params;
+    
+    // VALIDASI PROTEKSI: Cegah foreign key violation jika session user kosong/invalid
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'User tidak terautentikasi atau ID pengguna tidak valid.' });
+    }
     const userId = req.user.id;
 
     const { score, accuracy, attempts, time_seconds, module_id } = req.body;
@@ -53,7 +58,13 @@ async function saveExerciseResult(req, res, next) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // Menangkap error foreign key secara spesifik agar tidak langsung crash 500
+      if (error.code === '23503') {
+        return res.status(400).json({ error: 'Gagal menyimpan hasil. Referensi User ID atau ID Latihan tidak ditemukan di database.' });
+      }
+      throw error;
+    }
 
     res.status(201).json(data);
   } catch (err) {
@@ -66,6 +77,9 @@ async function saveExerciseResult(req, res, next) {
  */
 async function getUserResults(req, res, next) {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'User tidak terautentikasi.' });
+    }
     const userId = req.user.id;
     const limit = parseInt(req.query.limit) || 20;
 
@@ -89,6 +103,9 @@ async function getUserResults(req, res, next) {
  */
 async function getLatestResult(req, res, next) {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'User tidak terautentikasi.' });
+    }
     const userId = req.user.id;
 
     const { data, error } = await supabaseAdmin
@@ -123,6 +140,9 @@ async function getLatestResult(req, res, next) {
  */
 async function getLatestResultAndRecommendedNext(req, res, next) {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'User tidak terautentikasi.' });
+    }
     const userId = req.user.id;
 
     // 1. ambil latest result
@@ -175,6 +195,7 @@ async function getLatestResultAndRecommendedNext(req, res, next) {
     next(err);
   }
 }
+
 module.exports = {
   getExerciseById,
   saveExerciseResult,

@@ -262,20 +262,53 @@ const LatihanPage = () => {
   const totalEx = module?.total_exercises || allExercises.length;
 
   // Parse reference_url untuk multi-gambar
-  const referenceUrls = (() => {
-    try {
-      if (!exercise?.reference_url) return {};
-      if (typeof exercise.reference_url === 'string') {
-        return JSON.parse(exercise.reference_url);
+  // Parse reference_url pintar untuk menangani format PostgreSQL Array String {}
+const referenceUrls = (() => {
+  try {
+    if (!exercise?.reference_url) return {};
+    
+    let urlsArray = [];
+    
+    if (typeof exercise.reference_url === 'string') {
+      // Menangani format bawaan Postgres string seperti: "{url1,url2,url3}"
+      if (exercise.reference_url.startsWith('{') && exercise.reference_url.endsWith('}')) {
+        const cleanedStr = exercise.reference_url.slice(1, -1); // Membuang kurung kurawal '{' dan '}'
+        urlsArray = cleanedStr.split(',').map(url => url.trim());
+      } else {
+        // Fallback jika berupa JSON array string standard
+        try {
+          const parsed = JSON.parse(exercise.reference_url);
+          urlsArray = Array.isArray(parsed) ? parsed : Object.values(parsed);
+        } catch {
+          urlsArray = [exercise.reference_url];
+        }
       }
-      return exercise.reference_url;
-    } catch {
-      return {};
+    } else if (Array.isArray(exercise.reference_url)) {
+      urlsArray = exercise.reference_url;
     }
-  })();
 
-  const refKeys = Object.keys(referenceUrls);
-  const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]] : null;
+    // Ambil target_signs. Karena dari Supabase sudah otomatis jadi Array, kita handle dua kondisi:
+    const expectedSigns = Array.isArray(exercise.target_signs)
+      ? exercise.target_signs
+      : JSON.parse(exercise.target_signs || '[]');
+
+    // Petakan array URL gambar ke tombol label angka target-nya (6, 7, 8, 9)
+    const mappedObj = {};
+    urlsArray.forEach((url, index) => {
+      // Jika target_signs ada isinya, pakai angkanya (misal '6'). Jika overload, pakai 'Gbr X'
+      const label = expectedSigns[index] !== undefined ? String(expectedSigns[index]).trim() : `Gbr ${index + 1}`;
+      mappedObj[label] = url;
+    });
+
+    return mappedObj;
+  } catch (err) {
+    console.error("Gagal total saat melakukan parse reference_url:", err);
+    return {};
+  }
+})();
+
+const refKeys = Object.keys(referenceUrls);
+const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]] : null;
 
   return (
     <div className="flex-1 flex flex-col bg-white text-gray-800 antialiased pt-6 pb-20">

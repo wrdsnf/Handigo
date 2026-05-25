@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabase');
+const { supabase, supabaseAdmin } = require('../config/supabase');
 
 /**
  * @swagger
@@ -35,7 +35,7 @@ async function getAllProgress(req, res, next) {
   try {
     const userId = req.user.id;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_progress')
       .select('*')
       .eq('user_id', userId);
@@ -84,7 +84,7 @@ async function getModuleProgress(req, res, next) {
     const userId = req.user.id;
     const { moduleId } = req.params;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_progress')
       .select('*')
       .eq('user_id', userId)
@@ -160,7 +160,7 @@ async function upsertModuleProgress(req, res, next) {
     } = req.body;
 
     // Ambil progress lama
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('user_progress')
       .select(
         'completed_exercises, progress_percentage, last_exercise_index'
@@ -184,7 +184,7 @@ async function upsertModuleProgress(req, res, next) {
       last_exercise_index || 0
     );
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_progress')
       .upsert(
         {
@@ -239,7 +239,7 @@ async function getLastAccessed(req, res, next) {
   try {
     const userId = req.user.id;
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('user_progress')
       .select('*, modules(*)')
       .eq('user_id', userId)
@@ -293,12 +293,12 @@ async function getDashboardStats(req, res, next) {
       { data: progress, error: pErr },
       { data: results, error: rErr }
     ] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('user_progress')
         .select('*')
         .eq('user_id', userId),
 
-      supabase
+      supabaseAdmin
         .from('exercise_results')
         .select('accuracy, created_at')
         .eq('user_id', userId)
