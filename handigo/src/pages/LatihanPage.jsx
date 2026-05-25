@@ -51,9 +51,25 @@ const LatihanPage = () => {
   const exerciseId = location.state?.exerciseId;
   const exerciseIndex = location.state?.exerciseIndex;
 
+  // Menentukan model ONNX secara dinamis berdasarkan UUID Modul dari URL params
   const modelPath = useMemo(() => {
-    return '/models/yolov8/best.onnx';
-  }, []);
+    if (!id) return '/models/yolov8/best.onnx';
+
+    switch (id) {
+      case 'a1000000-0000-0000-0000-000000000001': // MOD-01: Alfabet
+        return '/models/yolov8/best.onnx'; 
+
+      case 'a2000000-0000-0000-0000-000000000002': // MOD-02: Angka
+        return '/models/yolov8/numbers.onnx';
+
+      case 'a3000000-0000-0000-0000-000000000003': // MOD-03: Kosakata Sehari-hari
+        return '/models/yolov8/words.onnx';
+
+      default:
+        // Fallback default model
+        return '/models/yolov8/best.onnx';
+    }
+  }, [id]);
 
   // Reset refImageIndex setiap ganti exercise
   useEffect(() => {
@@ -202,53 +218,53 @@ const LatihanPage = () => {
   };
 
   const handleNext = async () => {
-  if (!user || !exercise || isProcessing) return;
+    if (!user || !exercise || isProcessing) return;
 
-  setIsProcessing(true);
+    setIsProcessing(true);
 
-  try {
-    // kalau masih scanning, paksa finalisasi dulu
-    let finalAccuracy = accuracy;
+    try {
+      // kalau masih scanning, paksa finalisasi dulu
+      let finalAccuracy = accuracy;
 
-    if (isScanning) {
-      finalAccuracy = Math.round(bestAccuracyRef.current || 0);
-    }
+      if (isScanning) {
+        finalAccuracy = Math.round(bestAccuracyRef.current || 0);
+      }
 
-    const timeSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
-    const score = finalAccuracy;
+      const timeSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+      const score = finalAccuracy;
 
-    await saveExerciseResult(exercise.id, {
-      module_id: id,
-      score,
-      accuracy: finalAccuracy,
-      attempts: 1,
-      time_seconds: timeSeconds,
-    });
-
-    await upsertProgress(id, {
-      completed_exercises: exercise.sort_order,
-      progress_percentage: 100,
-      last_exercise_index: exercise.sort_order,
-    });
-
-    navigate(`/modul/${id}/hasil`, {
-      state: {
+      await saveExerciseResult(exercise.id, {
+        module_id: id,
         score,
         accuracy: finalAccuracy,
-        timeSeconds,
-        exerciseTitle: exercise.title,
-        exerciseIndex: exercise.sort_order,
-        totalExercises: module?.total_exercises || allExercises.length,
-      },
-    });
+        attempts: 1,
+        time_seconds: timeSeconds,
+      });
 
-  } catch (err) {
-    console.error(err);
-    alert('Gagal menyimpan hasil. Coba lagi.');
-  } finally {
-    setIsProcessing(false);
-  }
-};
+      await upsertProgress(id, {
+        completed_exercises: exercise.sort_order,
+        progress_percentage: 100,
+        last_exercise_index: exercise.sort_order,
+      });
+
+      navigate(`/modul/${id}/hasil`, {
+        state: {
+          score,
+          accuracy: finalAccuracy,
+          timeSeconds,
+          exerciseTitle: exercise.title,
+          exerciseIndex: exercise.sort_order,
+          totalExercises: module?.total_exercises || allExercises.length,
+        },
+      });
+
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menyimpan hasil. Coba lagi.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (authLoading || loading) return <LoadingSpinner text="Memuat latihan..." />;
   if (!exercise)
@@ -261,54 +277,48 @@ const LatihanPage = () => {
   const currentExIdx = exercise.sort_order;
   const totalEx = module?.total_exercises || allExercises.length;
 
-  // Parse reference_url untuk multi-gambar
   // Parse reference_url pintar untuk menangani format PostgreSQL Array String {}
-const referenceUrls = (() => {
-  try {
-    if (!exercise?.reference_url) return {};
-    
-    let urlsArray = [];
-    
-    if (typeof exercise.reference_url === 'string') {
-      // Menangani format bawaan Postgres string seperti: "{url1,url2,url3}"
-      if (exercise.reference_url.startsWith('{') && exercise.reference_url.endsWith('}')) {
-        const cleanedStr = exercise.reference_url.slice(1, -1); // Membuang kurung kurawal '{' dan '}'
-        urlsArray = cleanedStr.split(',').map(url => url.trim());
-      } else {
-        // Fallback jika berupa JSON array string standard
-        try {
-          const parsed = JSON.parse(exercise.reference_url);
-          urlsArray = Array.isArray(parsed) ? parsed : Object.values(parsed);
-        } catch {
-          urlsArray = [exercise.reference_url];
+  const referenceUrls = (() => {
+    try {
+      if (!exercise?.reference_url) return {};
+      
+      let urlsArray = [];
+      
+      if (typeof exercise.reference_url === 'string') {
+        if (exercise.reference_url.startsWith('{') && exercise.reference_url.endsWith('}')) {
+          const cleanedStr = exercise.reference_url.slice(1, -1);
+          urlsArray = cleanedStr.split(',').map(url => url.trim());
+        } else {
+          try {
+            const parsed = JSON.parse(exercise.reference_url);
+            urlsArray = Array.isArray(parsed) ? parsed : Object.values(parsed);
+          } catch {
+            urlsArray = [exercise.reference_url];
+          }
         }
+      } else if (Array.isArray(exercise.reference_url)) {
+        urlsArray = exercise.reference_url;
       }
-    } else if (Array.isArray(exercise.reference_url)) {
-      urlsArray = exercise.reference_url;
+
+      const expectedSigns = Array.isArray(exercise.target_signs)
+        ? exercise.target_signs
+        : JSON.parse(exercise.target_signs || '[]');
+
+      const mappedObj = {};
+      urlsArray.forEach((url, index) => {
+        const label = expectedSigns[index] !== undefined ? String(expectedSigns[index]).trim() : `Gbr ${index + 1}`;
+        mappedObj[label] = url;
+      });
+
+      return mappedObj;
+    } catch (err) {
+      console.error("Gagal total saat melakukan parse reference_url:", err);
+      return {};
     }
+  })();
 
-    // Ambil target_signs. Karena dari Supabase sudah otomatis jadi Array, kita handle dua kondisi:
-    const expectedSigns = Array.isArray(exercise.target_signs)
-      ? exercise.target_signs
-      : JSON.parse(exercise.target_signs || '[]');
-
-    // Petakan array URL gambar ke tombol label angka target-nya (6, 7, 8, 9)
-    const mappedObj = {};
-    urlsArray.forEach((url, index) => {
-      // Jika target_signs ada isinya, pakai angkanya (misal '6'). Jika overload, pakai 'Gbr X'
-      const label = expectedSigns[index] !== undefined ? String(expectedSigns[index]).trim() : `Gbr ${index + 1}`;
-      mappedObj[label] = url;
-    });
-
-    return mappedObj;
-  } catch (err) {
-    console.error("Gagal total saat melakukan parse reference_url:", err);
-    return {};
-  }
-})();
-
-const refKeys = Object.keys(referenceUrls);
-const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]] : null;
+  const refKeys = Object.keys(referenceUrls);
+  const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]] : null;
 
   return (
     <div className="flex-1 flex flex-col bg-white text-gray-800 antialiased pt-20 pb-6">
@@ -351,7 +361,6 @@ const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]]
                     alt={refKeys[refImageIndex] || exercise?.title}
                     className="w-full h-full object-cover"
                   />
-                  {/* Tombol navigasi huruf/target jika lebih dari 1 */}
                   {refKeys.length > 1 && (
                     <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
                       {refKeys.map((k, i) => (
@@ -379,43 +388,39 @@ const currentRefUrl = refKeys.length > 0 ? referenceUrls[refKeys[refImageIndex]]
           </div>
 
           <div>
-  <p className="text-sm font-semibold text-center mb-3 text-gray-600">
-    KAMERA ANDA
-  </p>
+            <p className="text-sm font-semibold text-center mb-3 text-gray-600">
+              KAMERA ANDA
+            </p>
 
-  {/* BOX UTAMA */}
-  <div className=" h-100  bg-light-blue rounded-2xl overflow-hidden relative">
+            {/* BOX UTAMA */}
+            <div className="h-100 bg-light-blue rounded-2xl overflow-hidden relative">
+              {/* FORCE FULL HEIGHT */}
+              <div className="absolute inset-0 w-full h-full">
+                
+                {/* Membawa jalur modelPath hasil saringan useMemo */}
+                <YOLOv8DetectorONNX
+                  modelPath={modelPath}
+                  onDetection={handleDetection}
+                  isEnabled={!!exercise}
+                  confidenceThreshold={0.5}
+                  fps={5}
+                  className="w-full h-full"
+                />
 
-    {/* FORCE FULL HEIGHT */}
-    <div className="absolute inset-0 w-full h-full">
-      
-      <YOLOv8DetectorONNX
-        modelPath={modelPath}
-        onDetection={handleDetection}
-        isEnabled={!!exercise}
-        confidenceThreshold={0.5}
-        fps={10}
-        className="w-full h-full"
-      />
-
-    </div>
-
-  </div>
-</div>
+              </div>
+            </div>
+          </div>
         </div>
-
-        
 
         {/* ACTION */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-
           <button
-  onClick={handleNext}
-  disabled={isProcessing}
-  className="bg-primary-blue text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
->
-  Selanjutnya
-</button>
+            onClick={handleNext}
+            disabled={isProcessing}
+            className="bg-primary-blue text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-primary-hover active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Selanjutnya
+          </button>
         </div>
 
         {/* TIPS */}
