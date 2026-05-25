@@ -28,21 +28,22 @@ console.log('detectionRoutes:', typeof detectionRoutes);
 app.use(express.json());
 
 const allowedOrigins = [
-  'http://localhost:5173', // Untuk kamu ngoding di lokal
-  'https://agreeable-forest-004905c00.7.azurestaticapps.net' ,
-  'htps://handigo-five.vercel.app'// Untuk production
+  'http://localhost:5173',
+  'https://handigo-five.vercel.app' // <<-- PASTIKAN URL INI TIDAK ADA TYPO DAN TIDAK ADA GARIS MIRING (/) DI UJUNGNYA!
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Izinkan request tanpa origin (seperti Postman atau mobile apps)
+    // Jika request tidak punya origin (seperti Postman/Mobile), izinkan
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error('Blocked by CORS policy'));
+    // Jika origin terdaftar di array, izinkan
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+    
+    // Jika tidak terdaftar, tolak secara halus (kirim false, jangan kirim objek Error)
+    return callback(null, false);
   },
   credentials: true
 }));
