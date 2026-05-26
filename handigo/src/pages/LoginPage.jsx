@@ -37,9 +37,32 @@ const LoginPage = () => {
           toast.success('Login dengan Google berhasil!');
           navigate('/dashboard');
         }
-      }).catch(() => {
-        toast.error('Gagal memproses login Google dari backend');
-      });
+      })// Di dalam LoginPage.jsx
+googleLogin(idToken).then((result) => {
+  // Tambahkan console.log ini untuk mengintip struktur asli data dari backend
+  console.log("Hasil dari backend Google Login:", result);
+
+  if (result?.needProfile) {
+    // Ambil dari result.user (sesuai struktur res.json backend kamu)
+    const emailData = result.user?.email;
+    const nameData = result.user?.full_name;
+
+    if (!emailData || !nameData) {
+      toast.error('Gagal mengambil data profil dari Google.');
+      return;
+    }
+
+    navigate('/complete-profile', {
+      state: { email: emailData, full_name: nameData },
+    });
+  } else {
+    toast.success('Login dengan Google berhasil!');
+    navigate('/dashboard');
+  }
+}).catch((err) => {
+  console.error(err);
+  toast.error('Gagal memproses login Google dari backend');
+});
     }
   }, [googleLogin, navigate]);
 

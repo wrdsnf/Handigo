@@ -181,7 +181,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.warn("Backend session already expired:", err.message);
       // Alih-alih memunculkan toast ganti dengan pesan yang bersahabat
-      toast.success('Berhasil keluar (Sesi telah berakhir)');
+      
     } finally {
       // PENTING: Apapun yang terjadi pada request API,
       // hapus data user dari state agar aplikasi kembali ke halaman login/awal.

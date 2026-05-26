@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Container from '@/components/Container';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
+// Import ikon mata (pastikan sudah install react-icons, atau sesuaikan dengan ikon bawaan proyekmu)
+import { FiEye, FiEyeOff } from 'react-icons/fi'; 
 
 const CompleteProfilePage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Tangkap data dari router state
   const { email, full_name } = location.state || {};
 
   const { completeProfile } = useAuth();
@@ -15,33 +19,45 @@ const CompleteProfilePage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // CompleteProfilePage.jsx
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  // State untuk toggle sembunyikan/lihat password
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // ==========================================
+  // PROTEKSI HALAMAN: JIKA KOSONG, KEMBALI KE LOGIN
+  // ==========================================
+  useEffect(() => {
+    if (!email || !full_name) {
+      toast.error('Data Google tidak ditemukan. Silakan login ulang.');
+      navigate('/login', { replace: true }); // replace: true agar tidak bisa di-back
+    }
+  }, [email, full_name, navigate]);
+
+  // Cegah render form jika data masih kosong (menunggu proses redirect)
   if (!email || !full_name) {
-    toast.error('Data login Google tidak lengkap. Silakan coba login ulang.');
-    navigate('/login');
-    return;
+    return null; 
   }
 
-  if (password !== confirmPassword) {
-    toast.error('Password tidak cocok');
-    return;
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  setIsSubmitting(true);
-  try {
-    await completeProfile(email, password, full_name);
-    // BE sudah set cookie + login otomatis, AuthContext.completeProfile sudah setUser
-    toast.success('Profil lengkap! Selamat datang 🎉');
-    navigate('/dashboard');          // ← bukan /login
-  } catch (err) {
-    toast.error(err?.message || 'Gagal lengkapi profile');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    if (password !== confirmPassword) {
+      toast.error('Password tidak cocok');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await completeProfile(email, password, full_name);
+      toast.success('Profil lengkap! Selamat datang 🎉');
+      navigate('/dashboard'); 
+    } catch (err) {
+      toast.error(err?.message || 'Gagal lengkapi profile');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col bg-gray-100 py-12 md:py-20">
       <Container className="flex-1 flex items-center justify-center h-full">
@@ -57,41 +73,61 @@ const handleSubmit = async (e) => {
             <div>
               <label className="text-xs text-primary-blue">Email</label>
               <input
-                value={email || ''}
+                value={email}
                 disabled
-                className="w-full mt-1 px-4 py-2 rounded-full bg-gray-100"
+                className="w-full mt-1 px-4 py-2 rounded-full bg-gray-300 text-gray-600 cursor-not-allowed"
               />
             </div>
 
             <div>
               <label className="text-xs text-primary-blue">Nama Lengkap</label>
               <input
-                value={full_name || ''}
+                value={full_name}
                 disabled
-                className="w-full mt-1 px-4 py-2 rounded-full bg-gray-100"
+                className="w-full mt-1 px-4 py-2 rounded-full bg-gray-300 text-gray-600 cursor-not-allowed"
               />
             </div>
 
+            {/* PASSWORD BARU */}
             <div>
               <label className="text-xs text-primary-blue">Password Baru</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full mt-1 px-4 py-2 rounded-full bg-white shadow-sm outline-none focus:ring-2 focus:ring-primary-blue"
-                required
-              />
+              <div className="relative mt-1 flex items-center">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-2 pr-12 rounded-full bg-white shadow-sm outline-none focus:ring-2 focus:ring-primary-blue"
+                  required
+                />
+                <button
+                  type="button" // Pastikan type="button" agar tidak memicu submit form
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 text-gray-500 hover:text-primary-blue focus:outline-none"
+                >
+                  {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </button>
+              </div>
             </div>
 
+            {/* KONFIRMASI PASSWORD */}
             <div>
               <label className="text-xs text-primary-blue">Konfirmasi Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full mt-1 px-4 py-2 rounded-full bg-white shadow-sm outline-none focus:ring-2 focus:ring-primary-blue"
-                required
-              />
+              <div className="relative mt-1 flex items-center">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-2 pr-12 rounded-full bg-white shadow-sm outline-none focus:ring-2 focus:ring-primary-blue"
+                  required
+                />
+                <button
+                  type="button" // Pastikan type="button" agar tidak memicu submit form
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-4 text-gray-500 hover:text-primary-blue focus:outline-none"
+                >
+                  {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button
@@ -109,4 +145,3 @@ const handleSubmit = async (e) => {
 };
 
 export default CompleteProfilePage;
-
