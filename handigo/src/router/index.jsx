@@ -22,6 +22,19 @@ import LatihanPageWithONNX from '@/pages/LatihanPageWithONNX';
 import CVTestPage from '@/pages/CVTestPage';
 import CompleteProfilePage from '@/pages/CompleteProfilePage';
 
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext"; // atau cara auth kamu
+
+function IndexRedirect() {
+  const { user } = useAuth(); // atau token check
+
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <HomePage />;
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
@@ -29,9 +42,9 @@ const router = createBrowserRouter([
     errorElement: <NotFound />,
     children: [
       {
-        index: true,
-        element: <HomePage />,
-      },
+  index: true,
+  element: <IndexRedirect />,
+},
       {
         path: 'dictionary',
         element: <DictionaryPage />,

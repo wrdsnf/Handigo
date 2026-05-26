@@ -23,7 +23,7 @@ const HomePage = () => {
   }, [location]);
 
   return (
-    <div className="bg-white text-gray-800 antialiased w-full ">
+    <div className="bg-white text-gray-800 antialiased w-full pt-20">
       <Hero />
       <FeatureGrid />
       <ModulePreview />

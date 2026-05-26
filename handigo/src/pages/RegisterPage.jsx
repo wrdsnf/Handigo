@@ -103,7 +103,7 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 py-12 md:py-20">
+    <div className="flex-1 flex flex-col bg-gray-100 pt-20 py-12 md:py-20">
       <Container className="flex-1 flex items-center justify-center h-full">
       
       {/* CARD */}

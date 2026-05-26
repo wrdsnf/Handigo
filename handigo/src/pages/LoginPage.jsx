@@ -79,7 +79,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-100 py-12 md:py-20">
+    <div className="flex-1 flex flex-col bg-gray-100 py-12 pt-20 md:py-20">
       <Container className="flex-1 flex items-center justify-center h-full">
         <div className="w-100 max-w-md bg-light-blue rounded-2xl sm:rounded-3xl shadow-lg p-6 sm:p-8">
 
