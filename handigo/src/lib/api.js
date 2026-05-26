@@ -1,9 +1,6 @@
 import { apiFetch } from './http';
 
-const api = axios.create({
-  baseURL: 'https://handigo-be-aybwazffcmgxdcf2.southeastasia-01.azurewebsites.net/api',
-  withCredentials: true // <--- WAJIB ADA AGAR COOKIE TERKIRIM PADA SETIAP REQUEST
-});
+
 /**
  * =========================
  * MODULES
