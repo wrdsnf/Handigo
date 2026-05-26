@@ -28,27 +28,34 @@ const LoginPage = () => {
   window.history.replaceState(null, null, window.location.pathname);
 
   const handleGoogle = async () => {
-    try {
-      const result = await googleLogin(idToken);
+  try {
+    const result = await googleLogin(idToken);
+    console.log("Hasil backend:", result);
 
-      console.log("Hasil backend:", result);
-
-      if (result?.needProfile) {
-        navigate('/complete-profile', {
-          state: {
-            email: result.user?.email,
-            full_name: result.user?.full_name,
-          },
-        });
-      } else {
-        toast.success('Login dengan Google berhasil!');
+    if (result?.needProfile) {
+      navigate('/complete-profile', {
+        state: {
+          email: result.user?.email,
+          full_name: result.user?.full_name,
+        },
+      });
+    } else {
+      toast.success('Login dengan Google berhasil!');
+      
+      // ==========================================================
+      // SOLUSI: Kasih jeda 500ms agar browser selesai menulis cookie 
+      // sebelum dashboard mulai menembak API secara paralel.
+      // ==========================================================
+      setTimeout(() => {
         navigate('/dashboard');
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error('Gagal login Google');
+      }, 500); 
+
     }
-  };
+  } catch (err) {
+    console.error(err);
+    toast.error('Gagal login Google');
+  }
+};
 
   handleGoogle();
 }, [googleLogin, navigate]);
