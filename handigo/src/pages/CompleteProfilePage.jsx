@@ -4,7 +4,7 @@ import Container from '@/components/Container';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 // Import ikon mata (pastikan sudah install react-icons, atau sesuaikan dengan ikon bawaan proyekmu)
-import { FiEye, FiEyeOff } from 'react-icons/fi'; 
+import { Eye, EyeOff } from 'lucide-react';
 
 const CompleteProfilePage = () => {
   const location = useLocation();
@@ -106,7 +106,7 @@ const CompleteProfilePage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 text-gray-500 hover:text-primary-blue focus:outline-none"
                 >
-                  {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -127,7 +127,7 @@ const CompleteProfilePage = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-4 text-gray-500 hover:text-primary-blue focus:outline-none"
                 >
-                  {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
