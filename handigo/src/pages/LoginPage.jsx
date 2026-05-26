@@ -58,7 +58,7 @@ const LoginPage = () => {
   // ==========================================
   const handleGoogleRedirect = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    const redirectUri = 'https://handigo-five.vercel.app/login'; // Halaman ini sendiri
+    const redirectUri = import.meta.env.VITE_GOOGLE_REDIRECT_URI; // Halaman ini sendiri
     const scope = 'email profile openid';
     const responseType = 'id_token';
     const nonce = Math.random().toString(36).substring(2); // Wajib untuk keamanan token
