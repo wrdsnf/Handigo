@@ -14,8 +14,6 @@ import {
 
 import YOLOv8DetectorONNX from '@/components/YOLOv8DetectorONNX';
 
-const LATIHAN_SECONDS = 10;
-
 const LatihanPage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -30,17 +28,13 @@ const LatihanPage = () => {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [isScanning, setIsScanning] = useState(true);
   const [detectionMessage, setDetectionMessage] = useState('Mendeteksi...');
-
   const [accuracy, setAccuracy] = useState(0);
   const [isDetected, setIsDetected] = useState(false);
 
   const bestAccuracyRef = useRef(0);
   const detectedAnyRef = useRef(false);
-
   const startTimeRef = useRef(0);
-  const timerRef = useRef(null);
 
   const [refImageIndex, setRefImageIndex] = useState(0);
 
@@ -54,7 +48,6 @@ const LatihanPage = () => {
     const idStr = String(id).toLowerCase();
     const titleStr = module?.title ? String(module.title).toLowerCase() : '';
 
-    // Cek Modul Angka (Bisa lewat segmen ID URL, kata kunci ID, atau Judul dari DB)
     if (
       idStr === '2' || 
       idStr.includes('number') || 
@@ -65,7 +58,6 @@ const LatihanPage = () => {
       return '/models/yolov8/numbers.onnx';
     }
 
-    // Cek Modul Kata / Kosakata
     if (
       idStr === '3' || 
       idStr.includes('word') || 
@@ -77,11 +69,9 @@ const LatihanPage = () => {
       return '/models/yolov8/words.onnx';
     }
 
-    // Default Fallback ke Modul 1 (Alfabet)
     return '/models/yolov8/best.onnx';
   }, [id, module]);
 
-  // Parsing target_signs dipisah ke useMemo agar tidak merusak siklus re-render
   const expectedSigns = useMemo(() => {
     if (!exercise) return [];
     try {
@@ -98,7 +88,6 @@ const LatihanPage = () => {
     setRefImageIndex(0);
   }, [exercise?.id]);
 
-  // Memuat seluruh data dari API Backend
   useEffect(() => {
     if (authLoading) return;
 
@@ -149,37 +138,9 @@ const LatihanPage = () => {
     };
   }, [id, exerciseId, exerciseIndex, authLoading, user]);
 
-  // Timer Manajemen Sesi Latihan
-  useEffect(() => {
-    if (!exercise || !isScanning) return;
-
-    startTimeRef.current = Date.now();
-    bestAccuracyRef.current = 0;
-    detectedAnyRef.current = false;
-
-    timerRef.current = setTimeout(() => {
-      setIsScanning(false);
-
-      const finalAccuracy = detectedAnyRef.current ? bestAccuracyRef.current : 0;
-      setAccuracy(Math.round(finalAccuracy));
-      setIsDetected(detectedAnyRef.current && bestAccuracyRef.current > 0);
-
-      setDetectionMessage(
-        detectedAnyRef.current && bestAccuracyRef.current > 0
-          ? '✓ Sesi latihan selesai'
-          : '⚠️ Waktu habis, isyarat tidak terdeteksi'
-      );
-    }, LATIHAN_SECONDS * 1000);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [exercise, isScanning]);
-
-  // Callback penerima koordinat & deteksi dari komponen anak
   const handleDetection = useCallback(
     ({ detections }) => {
-      if (!exercise || !isScanning) return;
+      if (!exercise) return;
 
       if (!detections || detections.length === 0) {
         setIsDetected(false);
@@ -187,7 +148,6 @@ const LatihanPage = () => {
         return;
       }
 
-      // Normalisasi nama deteksi dari model agar seragam huruf kapital/spasi
       const matched = detections.filter((d) =>
         expectedSigns.some(target => target.toLowerCase() === String(d.className || '').trim().toLowerCase())
       );
@@ -195,7 +155,6 @@ const LatihanPage = () => {
       if (matched.length === 0) {
         detectedAnyRef.current = true;
         setIsDetected(false);
-        setAccuracy(0);
         const wrongNames = detections.map((d) => d.className).join(', ');
         setDetectionMessage(`⚠️ Terbaca "${wrongNames}", posisikan tangan dengan benar`);
         return;
@@ -209,22 +168,14 @@ const LatihanPage = () => {
 
       setIsDetected(true);
       setAccuracy(Math.round(bestAccuracyRef.current));
+      
+      // Update pesan supaya user tahu akurasi tertinggi mereka sejauh ini
       setDetectionMessage(
-        `✓ "${matched[0].className}" terdeteksi sempurna (${Math.round(pct)}%)`
+        `✓ "${matched[0].className}" terdeteksi! (Akurasi terbaik: ${Math.round(bestAccuracyRef.current)}%)`
       );
     },
-    [exercise, isScanning, expectedSigns]
+    [exercise, expectedSigns]
   );
-
-  const handleRetry = () => {
-    bestAccuracyRef.current = 0;
-    detectedAnyRef.current = false;
-    setAccuracy(0);
-    setIsDetected(false);
-    setDetectionMessage('Mendeteksi...');
-    setIsScanning(true);
-    startTimeRef.current = Date.now();
-  };
 
   const handleNext = async () => {
     if (!user || !exercise || isProcessing) return;
@@ -232,11 +183,7 @@ const LatihanPage = () => {
     setIsProcessing(true);
 
     try {
-      let finalAccuracy = accuracy;
-      if (isScanning) {
-        finalAccuracy = Math.round(bestAccuracyRef.current || 0);
-      }
-
+      const finalAccuracy = Math.round(bestAccuracyRef.current || 0);
       const timeSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
       const score = finalAccuracy;
 
@@ -285,7 +232,6 @@ const LatihanPage = () => {
   const currentExIdx = exercise.sort_order;
   const totalEx = module?.total_exercises || allExercises.length;
 
-  // Parser URL gambar referensi pintar
   const referenceUrls = (() => {
     try {
       if (!exercise?.reference_url) return {};
@@ -401,7 +347,7 @@ const LatihanPage = () => {
               <YOLOv8DetectorONNX
                 modelPath={modelPath}
                 onDetection={handleDetection}
-                isEnabled={isScanning && !!exercise}
+                isEnabled={!!exercise}
                 confidenceThreshold={0.4}
                 fps={6}
                 className="w-full h-full"
@@ -412,14 +358,6 @@ const LatihanPage = () => {
 
         {/* TOMBOL AKSI */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
-          {!isScanning && (
-            <button
-              onClick={handleRetry}
-              className="w-full sm:w-auto bg-gray-100 text-gray-700 px-8 py-3.5 rounded-full text-sm font-bold hover:bg-gray-200 active:scale-95 transition-all cursor-pointer"
-            >
-              Coba Pindai Ulang
-            </button>
-          )}
           <button
             onClick={handleNext}
             disabled={isProcessing}
@@ -433,7 +371,7 @@ const LatihanPage = () => {
         <div className="flex items-start gap-2.5 text-xs text-gray-400 max-w-lg mx-auto bg-gray-50 p-3 rounded-xl border border-gray-100">
           <Lightbulb size={16} className="text-amber-500 shrink-0 mt-0.5" />
           <p className="leading-normal">
-            <strong>Tips Akurasi:</strong> Pastikan telapak tangan menghadap penuh ke arah lensa kamera, tidak terlalu jauh, serta hindari bayangan objek lain di latar belakang.
+            <strong>Tips Akurasi:</strong> Pastikan telapak tangan menghadap penuh ke arah lensa kamera, tidak terlalu jauh, serta hindari bayangan objek lain di latar belakang. Kamera akan terus memindai dan merekam akurasi terbaikmu.
           </p>
         </div>
       </Container>
