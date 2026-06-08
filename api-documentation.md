@@ -1,6 +1,6 @@
 # Dokumentasi API RESTful
 
-Berikut adalah daftar lengkap endpoint API yang tersedia, dikelompokkan berdasarkan modulnya. Semua *request* dikirimkan ke base URL server kamu (misal: `http://localhost:5000`).
+Berikut adalah daftar lengkap endpoint API yang tersedia, dikelompokkan berdasarkan modulnya. Semua *request* dikirimkan ke base URL server kamu (misal: `http://localhost:5000`/ `handigo-be-aybwazffcmgxdcf2.southeastasia-01.azurewebsites.net`).
 
 ---
 
