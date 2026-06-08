@@ -128,13 +128,15 @@ async function login(req, res, next) {
       }
     );
 
-    // 5. Save cookie
-    res.cookie('access_token', myAccessToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax', // Disesuaikan untuk keamanan standar
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+
+    // 5. Save cookie
+    res.cookie('access_token', myAccessToken, cookieOptions);
 
     return res.json({
       message: 'Login sukses',
@@ -246,13 +248,15 @@ async function googleLogin(req, res) {
       }
     );
 
-    // COOKIE
-    res.cookie('access_token', myAccessToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+
+    // COOKIE
+    res.cookie('access_token', myAccessToken, cookieOptions);
 
     return res.json({
       message: 'Login Google sukses',
@@ -328,13 +332,15 @@ async function completeProfile(req, res) {
       }
     );
 
-    // 5. Save cookie
-    res.cookie('access_token', myAccessToken, {
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    };
+
+    // 5. Save cookie
+    res.cookie('access_token', myAccessToken, cookieOptions);
 
     return res.json({
       message: 'Registrasi Google selesai',
