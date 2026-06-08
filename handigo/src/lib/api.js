@@ -23,7 +23,6 @@ export const fetchExercises = (moduleId) => {
 // Alias (biar FE tidak perlu tahu struktur BE)
 export const fetchModuleExercises = fetchExercises;
 
-
 export const fetchExerciseById = (exerciseId) => {
   return apiFetch(`/exercises/${exerciseId}`);
 };
@@ -50,6 +49,35 @@ export const fetchLatestResultAndNextExercises = (moduleId) => {
   return apiFetch(`/exercises/results/latest/next?module_id=${moduleId}`);
 };
 
+/**
+ * =========================
+ * TEST MODE
+ * =========================
+ */
+
+export const startTestSession = (moduleId) => {
+  return apiFetch(`/test/${moduleId}/start`);
+};
+
+export const submitTestAnswer = (payload) => {
+  return apiFetch('/test/answer', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+// Compatibility alias for older naming used in TestPage
+export const submitQuestionAnswer = submitTestAnswer;
+
+export const finishTestSession = (sessionId) => {
+  return apiFetch(`/test/${sessionId}/finish`, {
+    method: 'POST',
+  });
+};
+
+export const fetchTestHistory = (moduleId) => {
+  return apiFetch(`/test/${moduleId}/history`);
+};
 
 /**
  * =========================
@@ -157,4 +185,3 @@ export const completeProfile = (email, password, full_name) => {
     body: JSON.stringify({ email, password, full_name }),
   });
 };
-

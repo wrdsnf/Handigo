@@ -84,6 +84,16 @@ const LatihanPage = () => {
     }
   }, [exercise]);
 
+  const targetLabel = useMemo(() => {
+    if (!expectedSigns || expectedSigns.length === 0) {
+      return exercise?.title || 'Target tidak tersedia';
+    }
+
+    return expectedSigns.length === 1
+      ? expectedSigns[0]
+      : expectedSigns.join(' / ');
+  }, [expectedSigns, exercise?.title]);
+
   useEffect(() => {
     setRefImageIndex(0);
   }, [exercise?.id]);
@@ -289,7 +299,7 @@ const LatihanPage = () => {
         {/* AREA INSTRUKSI */}
         <div className="bg-light-blue rounded-2xl p-5 sm:p-6 text-center mb-6 shadow-sm">
           <h1 className="text-xl sm:text-2xl font-extrabold text-primary-blue mb-2 tracking-tight">
-            Target: {exercise.title}
+            Target: {targetLabel}
           </h1>
           <p className="text-blue-600 font-bold mb-3 text-base tracking-wide bg-white/60 inline-block px-4 py-1 rounded-full">
             {detectionMessage}

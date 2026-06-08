@@ -143,18 +143,7 @@ const DashboardPage = () => {
           </p>
         </div>
 
-        {/* STATS */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-8 sm:mb-10 cursor-default w-full">
-  <StatCard
-    title="Modul Selesai"
-    value={stats?.completedModules || 0}
-  />
-  <StatCard
-    title="Streak Hari"
-    value={stats?.streak || 0}
-  />
-</div>
-
+        
         <ModulePreview />
 
         {/* GRAFIK */}

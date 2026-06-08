@@ -21,6 +21,8 @@ import ResultPage from '@/pages/ResultPage';
 import LatihanPageWithONNX from '@/pages/LatihanPageWithONNX';
 import CVTestPage from '@/pages/CVTestPage';
 import CompleteProfilePage from '@/pages/CompleteProfilePage';
+import TestPage from '@/pages/TestPage';
+import TestResultPage from '@/pages/TestResultPage';
 
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext"; // atau cara auth kamu
@@ -49,6 +51,14 @@ const router = createBrowserRouter([
         path: 'dictionary',
         element: <DictionaryPage />,
       },
+      {
+  path: '/modul/:id/test',
+  element: <TestPage />,
+},
+{
+  path: '/modul/:id/test/hasil',
+  element: <TestResultPage />,
+},
       {
         path: '/modul',
         element: <ModuleListPage />,
