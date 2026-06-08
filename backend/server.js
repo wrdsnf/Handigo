@@ -12,6 +12,7 @@ const progressRoutes = require('./routes/progress.routes');
 const exerciseRoutes = require('./routes/exercise.routes');
 const profileRoutes = require('./routes/profile.routes');
 const detectionRoutes = require('./routes/detection.routes');
+const testRoutes = require('./routes/test.routes');
 const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./docs/swagger');
@@ -25,6 +26,7 @@ console.log('progressRoutes:', typeof progressRoutes);
 console.log('exerciseRoutes:', typeof exerciseRoutes);
 console.log('profileRoutes:', typeof profileRoutes);
 console.log('detectionRoutes:', typeof detectionRoutes);
+console.log('testRoutes:', typeof testRoutes);
 app.use(express.json());
 
 const allowedOrigins = [
@@ -34,16 +36,13 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Jika request tidak punya origin (seperti Postman/Mobile), izinkan
     if (!origin) return callback(null, true);
-    
-    // Jika origin terdaftar di array, izinkan
+
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
-    // Jika tidak terdaftar, tolak secara halus (kirim false, jangan kirim objek Error)
-    return callback(null, false);
+
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
@@ -56,6 +55,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/detection', detectionRoutes);
+app.use('/api/test', testRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

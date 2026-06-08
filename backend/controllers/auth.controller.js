@@ -128,12 +128,14 @@ async function login(req, res, next) {
       }
     );
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    };
+    const isProd = process.env.NODE_ENV === 'production';
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
     // 5. Save cookie
     res.cookie('access_token', myAccessToken, cookieOptions);
