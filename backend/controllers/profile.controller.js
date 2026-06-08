@@ -1,7 +1,8 @@
-const { supabase, supabaseAdmin } = require('../config/supabase');
+const pool = require('../config/db'); // Menggunakan config Neon pg kamu
 
 /**
  * GET /api/profile
+ * Mengambil profil user yang sedang login
  */
 async function getProfile(req, res, next) {
   try {
@@ -12,19 +13,12 @@ async function getProfile(req, res, next) {
       return res.status(401).json({ error: 'Unauthorized - ID user tidak ditemukan' });
     }
 
-    // 2. Ambil data dari tabel profiles menggunakan supabase biasa
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error) {
-      return res.status(500).json({
-        error: 'Database error',
-        detail: error.message,
-      });
-    }
+    // 2. Ambil data dari tabel profiles menggunakan pool pg
+    const result = await pool.query(
+      'SELECT * FROM profiles WHERE id = $1 LIMIT 1',
+      [userId]
+    );
+    const data = result.rows[0];
 
     // Jika data profil tidak ditemukan di database
     if (!data) {
@@ -48,6 +42,7 @@ async function getProfile(req, res, next) {
 
 /**
  * PUT /api/profile
+ * Mengupdate data profil secara dinamis
  */
 async function updateProfile(req, res, next) {
   try {
@@ -60,33 +55,50 @@ async function updateProfile(req, res, next) {
     const userId = req.user.id;
     const { full_name, avatar_url } = req.body;
 
-    // Menghapus variable email dari req.body karena email bersifat unik 
-    // dan tidak boleh diubah sembarangan tanpa validasi ulang.
+    // Menyusun query update dinamis agar tidak menimpa data dengan 'undefined'
+    const queryFields = [];
+    const queryValues = [];
+    let counter = 1;
 
-    const updatePayload = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (full_name !== undefined) updatePayload.full_name = full_name;
-    if (avatar_url !== undefined) updatePayload.avatar_url = avatar_url;
-
-    // 4. Update data profil menggunakan kustom ID yang kita punya
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .update(updatePayload)
-      .eq('id', userId)
-      .select('*')
-      .maybeSingle();
-
-    if (error) {
-      console.error('SUPABASE UPDATE ERROR:', error);
-      return res.status(500).json({
-        error: 'Failed to update profile',
-        detail: error.message,
-      });
+    if (full_name !== undefined) {
+      queryFields.push(`full_name = $${counter++}`);
+      queryValues.push(full_name);
     }
 
-    return res.json(data);
+    if (avatar_url !== undefined) {
+      queryFields.push(`avatar_url = $${counter++}`);
+      queryValues.push(avatar_url);
+    }
+
+    // Jika tidak ada data yang dikirim untuk diupdate
+    if (queryFields.length === 0) {
+      return res.status(400).json({ error: 'Tidak ada data yang diubah' });
+    }
+
+    // Selalu update kolom updated_at dengan penanda waktu saat ini di Postgres
+    queryFields.push(`updated_at = NOW()`);
+
+    // Tambahkan userId di akhir array parameter sebagai kondisi WHERE
+    queryValues.push(userId);
+    const userIdPosition = counter;
+
+    // Gabungkan komponen menjadi kueri SQL utuh
+    const queryText = `
+      UPDATE profiles 
+      SET ${queryFields.join(', ')} 
+      WHERE id = $${userIdPosition} 
+      RETURNING *
+    `;
+
+    // 4. Eksekusi update kueri ke Neon
+    const result = await pool.query(queryText, queryValues);
+    const updatedData = result.rows[0];
+
+    if (!updatedData) {
+      return res.status(404).json({ error: 'Gagal update, profil tidak ditemukan' });
+    }
+
+    return res.json(updatedData);
 
   } catch (err) {
     console.error('UPDATE PROFILE CRASH:', err);

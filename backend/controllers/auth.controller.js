@@ -1,54 +1,17 @@
-/**
- * @swagger
- * tags:
- *   name: Auth
- *   description: API Authentication
- */
 
-const { supabase, supabaseAdmin } = require('../config/supabase');
+
+const pool = require('../config/db'); // Menggunakan config Neon pg kamu
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Register user baru
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - full_name
- *             properties:
- *               email:
- *                 type: string
- *                 example: user@mail.com
- *               password:
- *                 type: string
- *                 example: 12345678
- *               full_name:
- *                 type: string
- *                 example: Budi Santoso
- *     responses:
- *       201:
- *         description: Register berhasil
- *       400:
- *         description: Error input
- */
+
 
 /**
  * POST /api/auth/register
  * Register user baru (Custom Table Auth)
- * Body: { email, password, full_name }
  */
 async function register(req, res, next) {
   try {
@@ -59,20 +22,12 @@ async function register(req, res, next) {
     }
 
     // 1. Cek apakah email sudah terdaftar
-    const { data: existingUser, error: checkError } = await supabaseAdmin
-      .from('profiles')
-      .select('email')
-      .eq('email', email)
-      .maybeSingle();
+    const existingUser = await pool.query(
+      'SELECT email FROM profiles WHERE email = $1 LIMIT 1',
+      [email]
+    );
 
-    if (checkError) {
-      return res.status(500).json({
-        error: 'Gagal cek database',
-        detail: checkError.message
-      });
-    }
-
-    if (existingUser) {
+    if (existingUser.rows.length > 0) {
       return res.status(400).json({
         error: 'Email sudah terdaftar'
       });
@@ -83,25 +38,21 @@ async function register(req, res, next) {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // 3. Insert profile baru
-    const { data: newProfile, error: insertError } = await supabaseAdmin
-      .from('profiles')
-      .insert([
-        {
-          email,
-          password: hashedPassword,
-          full_name,
-          avatar_url: null
-        }
-      ])
-      .select()
-      .single();
+    const result = await pool.query(
+      `
+      INSERT INTO profiles (
+        email,
+        password,
+        full_name,
+        avatar_url
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+      `,
+      [email, hashedPassword, full_name, null]
+    );
 
-    if (insertError) {
-      return res.status(500).json({
-        error: 'Gagal membuat user baru',
-        detail: insertError.message
-      });
-    }
+    const newProfile = result.rows[0];
 
     return res.status(201).json({
       message: 'Register berhasil',
@@ -113,38 +64,10 @@ async function register(req, res, next) {
     });
 
   } catch (err) {
+    // Error dari database pg akan langsung ditangkap di sini
     next(err);
   }
 }
-
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Login user
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 example: user@mail.com
- *               password:
- *                 type: string
- *                 example: 12345678
- *     responses:
- *       200:
- *         description: Login sukses
- *       401:
- *         description: Unauthorized
- */
 
 /**
  * POST /api/auth/login
@@ -161,13 +84,13 @@ async function login(req, res, next) {
     }
 
     // 1. Cari user
-    const { data: profile, error: selectError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
+    const result = await pool.query(
+      'SELECT * FROM profiles WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    const profile = result.rows[0];
 
-    if (selectError || !profile) {
+    if (!profile) {
       return res.status(401).json({
         error: 'Email atau password salah'
       });
@@ -208,8 +131,8 @@ async function login(req, res, next) {
     // 5. Save cookie
     res.cookie('access_token', myAccessToken, {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax', // Disesuaikan untuk keamanan standar
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -229,17 +152,6 @@ async function login(req, res, next) {
 }
 
 /**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Logout user
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Logout sukses
- */
-
-/**
  * POST /api/auth/logout
  * Logout user
  */
@@ -250,29 +162,6 @@ async function logout(req, res) {
     message: 'Logout sukses'
   });
 }
-
-/**
- * @swagger
- * /api/auth/google:
- *   post:
- *     summary: Login dengan Google
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - credential
- *             properties:
- *               credential:
- *                 type: string
- *                 example: eyJhbGciOiJSUzI1NiIs...
- *     responses:
- *       200:
- *         description: Login Google sukses
- */
 
 /**
  * POST /api/auth/google
@@ -301,68 +190,40 @@ async function googleLogin(req, res) {
     const avatar_url = payload.picture;
 
     // CEK USER
-    let { data: profile, error: selectError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (selectError) {
-      return res.status(500).json({
-        error: 'Gagal cek database',
-        detail: selectError.message
-      });
-    }
-
+    const userResult = await pool.query(
+      'SELECT * FROM profiles WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    let profile = userResult.rows[0];
     let needProfile = false;
 
     // =========================
     // USER BARU
     // =========================
     if (!profile) {
-      const { data: newProfile, error: insertError } = await supabaseAdmin
-        .from('profiles')
-        .insert([
-          {
-            email,
-            full_name,
-            avatar_url,
-            password: null
-          }
-        ])
-        .select()
-        .single();
-
-      if (insertError) {
-        return res.status(500).json({
-          error: 'Gagal membuat profile baru',
-          detail: insertError.message
-        });
-      }
-
-      profile = newProfile;
-
-      // user baru wajib complete profile
-      needProfile = true;
+      const insertResult = await pool.query(
+        `INSERT INTO profiles (email, full_name, avatar_url, password) 
+         VALUES ($1, $2, $3, NULL) 
+         RETURNING *`,
+        [email, full_name, avatar_url]
+      );
+      
+      profile = insertResult.rows[0];
+      needProfile = true; // user baru wajib complete profile
     }
-
     // =========================
     // UPDATE PROFILE
     // =========================
     else {
-      const { data: updatedProfile } = await supabaseAdmin
-        .from('profiles')
-        .update({
-          full_name,
-          avatar_url
-        })
-        .eq('email', email)
-        .select()
-        .single();
-
-      if (updatedProfile) {
-        profile = updatedProfile;
-      }
+      const updateResult = await pool.query(
+        `UPDATE profiles 
+         SET full_name = $1, avatar_url = $2 
+         WHERE email = $3 
+         RETURNING *`,
+        [full_name, avatar_url, email]
+      );
+      
+      profile = updateResult.rows[0];
 
       // kalau belum punya password
       if (!profile.password) {
@@ -395,9 +256,7 @@ async function googleLogin(req, res) {
 
     return res.json({
       message: 'Login Google sukses',
-
       needProfile,
-
       user: {
         id: profile.id,
         email: profile.email,
@@ -415,37 +274,6 @@ async function googleLogin(req, res) {
 }
 
 /**
- * @swagger
- * /api/auth/complete-profile:
- *   post:
- *     summary: Lengkapi profile user Google
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - full_name
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 example: user@mail.com
- *               full_name:
- *                 type: string
- *                 example: Budi Santoso
- *               password:
- *                 type: string
- *                 example: 12345678
- *     responses:
- *       200:
- *         description: Profile berhasil dilengkapi
- */
-
-/**
  * POST /api/auth/complete-profile
  * Lengkapi akun Google dengan password
  */
@@ -460,17 +288,11 @@ async function completeProfile(req, res) {
     }
 
     // 1. Cari profile
-    const { data: profile, error: selectError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (selectError) {
-      return res.status(500).json({
-        error: 'Gagal membaca database'
-      });
-    }
+    const userResult = await pool.query(
+      'SELECT * FROM profiles WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    const profile = userResult.rows[0];
 
     if (!profile) {
       return res.status(400).json({
@@ -483,22 +305,15 @@ async function completeProfile(req, res) {
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // 3. Update profile
-    const { data: updatedProfile, error: updateError } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        password: hashedPassword,
-        full_name
-      })
-      .eq('email', email)
-      .select()
-      .single();
-
-    if (updateError) {
-      return res.status(500).json({
-        error: 'Gagal menyimpan data',
-        detail: updateError.message
-      });
-    }
+    const updateResult = await pool.query(
+      `UPDATE profiles 
+       SET password = $1, full_name = $2 
+       WHERE email = $3 
+       RETURNING *`,
+      [hashedPassword, full_name, email]
+    );
+    
+    const updatedProfile = updateResult.rows[0];
 
     // 4. Generate JWT
     const myAccessToken = jwt.sign(
@@ -532,21 +347,11 @@ async function completeProfile(req, res) {
 
   } catch (err) {
     return res.status(500).json({
-      error: err.message
+      error: 'Terjadi kesalahan pada server',
+      detail: err.message
     });
   }
 }
-
-/**
- * @swagger
- * /api/auth/me:
- *   get:
- *     summary: Ambil data user login
- *     tags: [Auth]
- *     responses:
- *       200:
- *         description: Data user berhasil diambil
- */
 
 /**
  * GET /api/auth/me
